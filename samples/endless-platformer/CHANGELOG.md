@@ -24,4 +24,5 @@ All notable changes to the Endless Shark sample are documented here.
 - Regression tests for quick-tap sensitivity and useful sustained ascent.
 - Responsive-camera regression tests for landscape framing, portrait limits and camera lead.
 - A sibling Capacitor 8 host with committed Android/iOS projects, APK/IPA build commands and
-  doctor-style launchers for physical devices, Android AVDs and iPhone Simulators.
+  deployment launchers: Android follows a scripted JDK/build/install flow for connected `adb`
+  targets, while iOS provides doctor, device and Simulator workflows.

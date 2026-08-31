@@ -17,9 +17,11 @@ pass `npm run check:native`.
 
 Changes to the native reference host or its launchers must keep both generated platform projects
 synchronized. Run `shellcheck samples/endless-platformer-capacitor/android.sh
-samples/endless-platformer-capacitor/ios.sh`, then use `./android.sh doctor` and `./ios.sh doctor`
-from that sample directory. Platform changes should be compiled in Android Studio/Gradle and Xcode;
-the root `npm run check` validates the shared web bundle but does not sign APK or IPA artifacts.
+samples/endless-platformer-capacitor/ios.sh`, verify `./android.sh --help`, and run `./ios.sh doctor`
+from that sample directory. Validate the complete Android path with `./android.sh` against an
+already connected `adb` target; use `--serial=<id>` when more than one target is present. Platform
+changes should be compiled in Gradle and Xcode; the root `npm run check` validates the shared web
+bundle but does not sign APK or IPA artifacts.
 
 All Markdown documentation must be written in English. Keep architecture and lifecycle diagrams in
 Mermaid so they render directly on GitHub. Do not add migration logs or references to private or

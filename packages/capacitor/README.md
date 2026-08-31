@@ -133,8 +133,9 @@ contracts, platform signals, observability, testing, and release guidance.
 
 The [Endless Shark Capacitor sample](../../samples/endless-platformer-capacitor/README.md) is a
 committed Android/iOS host that consumes this package through normal workspace resolution. Its
-`android.sh` and `ios.sh` launchers provide doctor-style toolchain checks, target discovery,
-emulator/simulator startup, synchronization, builds and deployment. Use it to validate host-level
+Android launcher follows a scripted deployment flow: it selects JDK 21, discovers connected
+`adb` targets, synchronizes the web bundle, builds the debug APK, installs it and launches it. The
+iOS launcher provides toolchain checks and simulator/device workflows. Use these hosts to validate
 plugin discovery in addition to the package's native contract tests.
 
 ## Contributing
