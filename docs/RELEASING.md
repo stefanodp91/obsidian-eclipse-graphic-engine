@@ -35,7 +35,8 @@ The `Release` GitHub Actions workflow then:
 
 The committed Android and iOS reference projects are validated through the Capacitor workspace,
 but the release workflow does not produce signed APK or IPA files. Before a release that changes
-native hosting, run both sample doctor commands and compile representative Android and iOS targets.
+native hosting, deploy the Android sample to an already connected `adb` target with `./android.sh`,
+run `./ios.sh doctor`, and compile a representative iOS target.
 
 If the workflow fails before publishing, fix the cause, delete the remote tag, recreate it on the
 correct commit and push it again. Never move a tag after a successful public release; publish a new

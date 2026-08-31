@@ -23,8 +23,8 @@ npm install
 npm run dev
 ```
 
-The same sample includes a Capacitor host with doctor-style launchers for physical devices and
-emulators/simulators:
+The same sample includes a Capacitor host with deployment launchers for physical devices and
+running emulators/simulators:
 
 ```bash
 npm run android
@@ -34,9 +34,10 @@ npm run build:ipa
 ```
 
 See the [Capacitor sample guide](samples/endless-platformer-capacitor/README.md) for Android, Xcode
-and signing requirements. Running `npm run android` or `npm run ios` without further arguments
-checks the local toolchain, discovers a target, and deploys when the environment is ready. Both the
-web and native variants adapt their camera and HUD to portrait and landscape screens.
+discovers a target and deploys the application. The Android launcher follows a scripted flow:
+it selects the Homebrew JDK 21, builds and synchronizes the web application, assembles the debug
+APK, installs it and launches it on an already connected `adb` target. Both the web and native
+variants adapt their camera and HUD to portrait and landscape screens.
 
 ## Architecture
 

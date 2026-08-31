@@ -60,12 +60,12 @@ the complete host toolchain and deploy to a discovered target:
 
 ```bash
 cd samples/endless-platformer-capacitor
-./android.sh doctor
 ./ios.sh doctor
 ./android.sh
 ./ios.sh
 ```
 
-The no-argument launchers proceed only after their doctor checks pass. They select the sole active
-target automatically, offer a menu for multiple active targets, or start a configured emulator or
-iPhone Simulator when none is active.
+The Android launcher selects the Homebrew JDK 21 and deploys to an already connected physical
+device or running emulator. It selects the sole `adb` target automatically, offers a menu for
+multiple targets, and accepts `--serial=<id>` or `ANDROID_SERIAL` for explicit selection. The iOS
+launcher retains its doctor check and can start a configured iPhone Simulator when none is active.

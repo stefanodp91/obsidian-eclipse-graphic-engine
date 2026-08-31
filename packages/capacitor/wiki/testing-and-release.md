@@ -29,15 +29,16 @@ Use the committed reference host for environment and deployment validation:
 
 ```bash
 cd samples/endless-platformer-capacitor
-./android.sh doctor
 ./ios.sh doctor
 ./android.sh
 ./ios.sh
 ```
 
-The doctor commands report missing dependencies without deploying. The no-argument commands then
-discover a device or emulator/simulator, synchronize the web bundle and compile/install the app.
-Android requires JDK 21; physical iOS devices and IPA builds require an Apple development team.
+The Android command selects the Homebrew JDK 21, discovers an already connected `adb` target,
+synchronizes the web bundle, builds the debug APK, installs it and launches the application. The
+iOS doctor reports missing dependencies without deploying; its no-argument command then discovers
+a device or simulator and compiles/installs the app. Physical iOS devices and IPA builds require an
+Apple development team.
 
 ## Release contents
 
