@@ -129,6 +129,14 @@ Java, Swift, Swift Package Manager and CocoaPods definitions.
 Read the [Capacitor adapter documentation](wiki/index.md) for architecture, installation, native
 contracts, platform signals, observability, testing, and release guidance.
 
+## Reference application
+
+The [Endless Shark Capacitor sample](../../samples/endless-platformer-capacitor/README.md) is a
+committed Android/iOS host that consumes this package through normal workspace resolution. Its
+`android.sh` and `ios.sh` launchers provide doctor-style toolchain checks, target discovery,
+emulator/simulator startup, synchronization, builds and deployment. Use it to validate host-level
+plugin discovery in addition to the package's native contract tests.
+
 ## Contributing
 
 Changes to a native capability must keep Android, iOS and TypeScript contracts synchronized. Bug

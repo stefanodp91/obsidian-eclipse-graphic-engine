@@ -20,7 +20,10 @@ html, body, main, #scene-root {
   overflow: hidden;
 }
 
-body { user-select: none; }
+body {
+  user-select: none;
+  overscroll-behavior: none;
+}
 
 #game {
   position: relative;
@@ -38,7 +41,9 @@ body { user-select: none; }
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: clamp(1rem, 3vw, 2.5rem);
+  padding: max(clamp(1rem, 3vw, 2.5rem), env(safe-area-inset-top))
+    max(clamp(1rem, 3vw, 2.5rem), env(safe-area-inset-right))
+    0 max(clamp(1rem, 3vw, 2.5rem), env(safe-area-inset-left));
   z-index: 10;
   pointer-events: none;
 }
@@ -105,8 +110,8 @@ h1 {
 
 .controls {
   position: fixed;
-  left: clamp(1rem, 3vw, 2.5rem);
-  bottom: clamp(1rem, 3vw, 2.5rem);
+  left: max(clamp(1rem, 3vw, 2.5rem), env(safe-area-inset-left));
+  bottom: max(clamp(1rem, 3vw, 2.5rem), env(safe-area-inset-bottom));
   display: flex;
   gap: 1.25rem;
   color: var(--foam);
@@ -149,6 +154,43 @@ kbd {
   .controls span:nth-child(3) { display: none; }
   .hud { padding-top: 1.1rem; }
   .run { gap: 0 .42rem; }
+}
+
+@media (orientation: portrait) {
+  .hud {
+    gap: .75rem;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 12vw, 4.25rem);
+  }
+
+  .run {
+    grid-template-columns: auto;
+    gap: .08rem;
+    padding: .55rem .65rem;
+  }
+
+  .run strong {
+    min-width: 0;
+    font-size: clamp(1.05rem, 5vw, 1.8rem);
+  }
+
+  .controls {
+    right: max(1rem, env(safe-area-inset-right));
+    justify-content: center;
+    text-align: center;
+  }
+
+  .controls span:first-child,
+  .controls span:nth-child(3) {
+    display: none;
+  }
+
+  #start {
+    bottom: max(12%, calc(env(safe-area-inset-bottom) + 4.5rem));
+    white-space: nowrap;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -52,3 +52,20 @@ const nativeServices = createCapacitorNativeServices();
 - iOS 15 or newer;
 - Java 21 for the Android library build;
 - Swift Package Manager 5.9 metadata or CocoaPods in the host project.
+
+## Verify with the reference host
+
+The committed [Capacitor sample](../../../samples/endless-platformer-capacitor/README.md) can verify
+the complete host toolchain and deploy to a discovered target:
+
+```bash
+cd samples/endless-platformer-capacitor
+./android.sh doctor
+./ios.sh doctor
+./android.sh
+./ios.sh
+```
+
+The no-argument launchers proceed only after their doctor checks pass. They select the sole active
+target automatically, offer a menu for multiple active targets, or start a configured emulator or
+iPhone Simulator when none is active.

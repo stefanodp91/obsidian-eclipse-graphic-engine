@@ -148,7 +148,9 @@ export function Application() {
 ```
 
 `mountGame(scene)` must return a cleanup function for the resources it adds. The playable
-[Endless Shark sample](../../samples/endless-platformer/README.md) is the sole reference consumer.
+[Endless Shark sample](../../samples/endless-platformer/README.md) is the reference gameplay
+consumer; its [Capacitor host](../../samples/endless-platformer-capacitor/README.md) packages the
+same Reactylon application for native devices and simulators.
 
 ## Architecture
 

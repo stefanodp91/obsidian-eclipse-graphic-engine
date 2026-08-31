@@ -56,6 +56,7 @@ export function Application() {
 graphic engine integration owns only resources explicitly created by the mount callback. Avoid
 having both systems dispose the same mesh, material, or physics aggregate.
 
-The tested [Endless Shark sample](../../../samples/endless-platformer/README.md) is the sole consumer
-fixture. The architectural decision is recorded in
+The tested [Endless Shark sample](../../../samples/endless-platformer/README.md) is the gameplay
+consumer fixture. Its [Capacitor companion](../../../samples/endless-platformer-capacitor/README.md)
+reuses the same web host in Android and iOS shells. The architectural decision is recorded in
 [ADR 0002](../../../docs/adr/0002-reactylon-as-optional-scene-owner.md).

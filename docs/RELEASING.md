@@ -6,8 +6,8 @@ not publish to npm and does not deploy GitHub Pages.
 ## Prepare a release
 
 1. Choose the next version using semantic versioning.
-2. Update the `version` field in the root manifest, both package manifests, the Endless Shark
-   manifest, and the sample-model manifest.
+2. Update the `version` field in the root manifest, both package manifests, the Endless Shark web
+   and Capacitor manifests, and the sample-model manifest.
 3. Run `npm install --package-lock-only` so `package-lock.json` records the same workspace versions.
 4. Update user-facing changelogs when the release contains behavior changes.
 5. Run `npm ci` followed by `npm run check` from a clean checkout.
@@ -32,6 +32,10 @@ The `Release` GitHub Actions workflow then:
 - packages the built Endless Shark sample as a ZIP archive;
 - generates SHA-256 checksums;
 - creates a GitHub Release with automatically generated notes and attaches the artifacts.
+
+The committed Android and iOS reference projects are validated through the Capacitor workspace,
+but the release workflow does not produce signed APK or IPA files. Before a release that changes
+native hosting, run both sample doctor commands and compile representative Android and iOS targets.
 
 If the workflow fails before publishing, fix the cause, delete the remote tag, recreate it on the
 correct commit and push it again. Never move a tag after a successful public release; publish a new

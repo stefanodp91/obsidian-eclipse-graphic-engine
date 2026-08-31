@@ -16,12 +16,27 @@ core package, so the integration is supported without imposing React on Babylon-
 | --- | --- |
 | ![Endless Shark start screen with the shark, HUD, and controls](docs/assets/endless-shark-ready.jpg) | ![Endless Shark gameplay with the shark hunting a school of fish](docs/assets/endless-shark-gameplay.jpg) |
 
-Run the sole sample locally:
+Run the playable web sample locally:
 
 ```bash
 npm install
 npm run dev
 ```
+
+The same sample includes a Capacitor host with doctor-style launchers for physical devices and
+emulators/simulators:
+
+```bash
+npm run android
+npm run ios
+npm run build:apk
+npm run build:ipa
+```
+
+See the [Capacitor sample guide](samples/endless-platformer-capacitor/README.md) for Android, Xcode
+and signing requirements. Running `npm run android` or `npm run ios` without further arguments
+checks the local toolchain, discovers a target, and deploys when the environment is ready. Both the
+web and native variants adapt their camera and HUD to portrait and landscape screens.
 
 ## Architecture
 
@@ -50,6 +65,7 @@ flowchart LR
 packages/core/                 Babylon.js runtime and adapters
 packages/capacitor/            optional Capacitor services and native plugins
 samples/endless-platformer/    playable Reactylon-hosted reference game
+samples/endless-platformer-capacitor/ native Android and iOS host for the sample
 docs/adr/                      architecture decisions
 ```
 
@@ -67,6 +83,7 @@ Package documentation:
 - [Core architecture and guides](packages/core/wiki/index.md)
 - [Capacitor architecture and guides](packages/capacitor/wiki/index.md)
 - [Playable Endless Platformer sample](samples/endless-platformer/README.md)
+- [Native Capacitor sample and device launchers](samples/endless-platformer-capacitor/README.md)
 
 ## Credits
 

@@ -40,6 +40,17 @@ licensed under the MIT License.
 
 - [Source repository](https://github.com/facebook/react)
 
+## Capacitor
+
+[Capacitor](https://capacitorjs.com/) provides the native Android/iOS bridge, CLI, platform hosts,
+Device and Preferences plugins used by the optional adapter and native sample. The repository also
+uses the Capacitor Community Keep Awake plugin. These dependencies are licensed under the MIT
+License.
+
+- [Capacitor source repository](https://github.com/ionic-team/capacitor)
+- [Capacitor plugins source repository](https://github.com/ionic-team/capacitor-plugins)
+- [Keep Awake source repository](https://github.com/capacitor-community/keep-awake)
+
 ## Assets and dependency records
 
 Endless Shark uses original procedural geometry and textures; it contains no downloaded game art,
