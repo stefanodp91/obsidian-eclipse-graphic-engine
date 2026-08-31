@@ -7,6 +7,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-31
+
 ### Added
 
 - Added responsive Android and iOS reference hosts for the Endless Shark sample, including native
@@ -28,5 +30,6 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Initial independent release of the Babylon.js core, Capacitor adapters and Endless Shark sample.
 
-[Unreleased]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/releases/tag/v0.1.0
