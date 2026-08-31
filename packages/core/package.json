@@ -1,0 +1,74 @@
+{
+  "name": "obsidian-eclipse-graphic-engine",
+  "version": "0.1.0",
+  "description": "Independent Babylon.js runtime and performance engine with optional React and Capacitor adapters.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stefanodp91/obsidian-eclipse-graphic-engine.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/issues"
+  },
+  "publishConfig": { "access": "public" },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./reactylon": {
+      "types": "./dist/reactylon.d.ts",
+      "import": "./dist/reactylon.js"
+    },
+    "./babylon": {
+      "types": "./dist/babylon.d.ts",
+      "import": "./dist/babylon.js"
+    },
+    "./cache": {
+      "types": "./dist/cache.d.ts",
+      "import": "./dist/cache.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist/", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "npm run typecheck && npm test && npm run build",
+    "pack:dry-run": "npm pack --dry-run"
+  },
+  "peerDependencies": {
+    "@babylonjs/core": "^9",
+    "@babylonjs/havok": "^1",
+    "react": "^19",
+    "reactylon": "^3.5.8"
+  },
+  "peerDependenciesMeta": {
+    "@babylonjs/havok": { "optional": true },
+    "react": { "optional": true },
+    "reactylon": { "optional": true }
+  },
+  "devDependencies": {
+    "@babylonjs/core": "^9",
+    "@babylonjs/havok": "^1",
+    "@types/node": "^20.11.30",
+    "@types/react": "^19",
+    "react": "^19",
+    "reactylon": "3.5.8",
+    "typescript": "^5.4.3",
+    "vite": "^7.1.3",
+    "vitest": "^3.2.4"
+  }
+}

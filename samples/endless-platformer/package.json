@@ -1,0 +1,30 @@
+{
+  "name": "@obsidian-eclipse/sample-endless-platformer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run src/*.test.ts"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^9",
+    "@obsidian-eclipse/endless-shark-models": "file:./models",
+    "obsidian-eclipse-graphic-engine": "^0.1.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "react-reconciler": "0.31.0",
+    "reactylon": "3.5.8"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5.2.0",
+    "babel-plugin-reactylon": "^1.3.3",
+    "typescript": "^5.4.3",
+    "vite": "^7.1.3",
+    "vitest": "^3.2.4"
+  }
+}

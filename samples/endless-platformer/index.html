@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b6574" />
+    <title>Endless Shark — graphic engine example</title>
+  </head>
+  <body>
+    <main>
+      <div id="scene-root"></div>
+      <header class="hud">
+        <div class="identity">
+          <span class="eyebrow">Mediterranean shelf · endless transect</span>
+          <h1>Endless<br />Shark</h1>
+          <output id="state">CURRENT: READY</output>
+        </div>
+        <div class="run" aria-live="polite">
+          <span>Distance</span>
+          <strong><output id="distance">0000</output><small> m</small></strong>
+          <span>Prey eaten</span>
+          <strong class="prey"><output id="prey">00</output></strong>
+          <span>Speed</span>
+          <strong><output id="speed">5.25</output><small> m/s</small></strong>
+        </div>
+      </header>
+      <div class="controls">
+        <span>automatic swim</span>
+        <span><kbd>Space</kbd> tap / hold to rise</span>
+        <span><kbd>R</kbd> restart</span>
+      </div>
+      <button id="start" type="button">Enter the current</button>
+    </main>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,84 @@
+{
+  "name": "obsidian-eclipse-capacitor-plugins",
+  "version": "0.1.0",
+  "description": "Optional Capacitor adapter for obsidian-eclipse-graphic-engine: thermal, refresh, battery, preferences and wake lock.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stefanodp91/obsidian-eclipse-graphic-engine.git",
+    "directory": "packages/capacitor"
+  },
+  "homepage": "https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/tree/main/packages/capacitor#readme",
+  "bugs": {
+    "url": "https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/issues"
+  },
+  "publishConfig": { "access": "public" },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./firebase": {
+      "types": "./dist/observability/firebase.d.ts",
+      "import": "./dist/firebase.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "android/src/main/",
+    "android/build.gradle",
+    "ios/Sources",
+    "Package.swift",
+    "ObsidianEclipseCapacitorPlugins.podspec",
+    "README.md",
+    "LICENSE"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "check:native-contract": "node scripts/check-native-contract.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "npm run typecheck && npm run check:native-contract && npm run build"
+  },
+  "dependencies": {
+    "obsidian-eclipse-graphic-engine": "^0.1.0"
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8",
+    "@capacitor/device": "^8",
+    "@capacitor/preferences": "^8",
+    "@capacitor-community/keep-awake": "^8",
+    "@capacitor-firebase/analytics": "^8",
+    "@capacitor-firebase/crashlytics": "^8",
+    "@capacitor-firebase/performance": "^8"
+  },
+  "peerDependenciesMeta": {
+    "@capacitor-firebase/analytics": { "optional": true },
+    "@capacitor-firebase/crashlytics": { "optional": true },
+    "@capacitor-firebase/performance": { "optional": true }
+  },
+  "devDependencies": {
+    "@capacitor/core": "^8",
+    "@capacitor/device": "^8",
+    "@capacitor/preferences": "^8",
+    "@capacitor-community/keep-awake": "^8",
+    "@capacitor-firebase/analytics": "^8",
+    "@capacitor-firebase/crashlytics": "^8",
+    "@capacitor-firebase/performance": "^8",
+    "typescript": "^5.4.3",
+    "vite": "^7.1.3"
+  }
+}

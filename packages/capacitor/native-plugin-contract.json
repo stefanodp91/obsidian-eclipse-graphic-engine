@@ -1,0 +1,22 @@
+{
+  "plugins": [
+    {
+      "name": "ThermalState",
+      "className": "ThermalStatePlugin",
+      "methods": [
+        "getPowerSaveMode",
+        "getState",
+        "getTemperature",
+        "getThermalHeadroom"
+      ]
+    },
+    {
+      "name": "DisplayRefresh",
+      "className": "DisplayRefreshPlugin",
+      "methods": [
+        "getRefreshInfo",
+        "setRefreshMode"
+      ]
+    }
+  ]
+}

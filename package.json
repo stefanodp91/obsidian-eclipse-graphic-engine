@@ -1,0 +1,26 @@
+{
+  "name": "@obsidian-eclipse/graphic-engine-repository",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Independent Obsidian Eclipse graphic-engine repository.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stefanodp91/obsidian-eclipse-graphic-engine.git"
+  },
+  "homepage": "https://github.com/stefanodp91/obsidian-eclipse-graphic-engine#readme",
+  "bugs": {
+    "url": "https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/issues"
+  },
+  "workspaces": ["packages/*", "samples/*"],
+  "scripts": {
+    "build": "npm run build --workspace obsidian-eclipse-graphic-engine && npm run build --workspace obsidian-eclipse-capacitor-plugins && npm run build --workspace @obsidian-eclipse/sample-endless-platformer",
+    "test": "npm test --workspace obsidian-eclipse-graphic-engine && npm test --workspace @obsidian-eclipse/sample-endless-platformer",
+    "typecheck": "npm run typecheck --workspace obsidian-eclipse-graphic-engine && npm run build --workspace obsidian-eclipse-graphic-engine && npm run typecheck --workspace obsidian-eclipse-capacitor-plugins",
+    "check:native": "npm run check:native-contract --workspace obsidian-eclipse-capacitor-plugins",
+    "check:docs": "node scripts/check-docs.mjs",
+    "check:sensitive": "node scripts/check-sensitive.mjs",
+    "check": "npm run check:sensitive && npm run typecheck && npm test && npm run check:native && npm run check:docs && npm run build",
+    "dev": "npm run dev --workspace @obsidian-eclipse/sample-endless-platformer",
+    "pack:dry-run": "npm pack --dry-run --workspace obsidian-eclipse-graphic-engine && npm pack --dry-run --workspace obsidian-eclipse-capacitor-plugins"
+  }
+}

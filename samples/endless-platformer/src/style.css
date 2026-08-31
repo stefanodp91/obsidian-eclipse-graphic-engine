@@ -1,0 +1,156 @@
+:root {
+  color: #d9f7e8;
+  background: #0b6574;
+  font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  --abyss: #062b3a;
+  --current: #0b6574;
+  --surface: #4ec6c1;
+  --foam: #d9f7e8;
+  --coral: #ff6b4a;
+  --sand: #d7b36a;
+}
+
+* { box-sizing: border-box; }
+
+html, body, main, #scene-root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body { user-select: none; }
+
+#game {
+  position: relative;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: manipulation;
+}
+
+.hud {
+  position: fixed;
+  inset: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.eyebrow, .run span, .controls, #state {
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: .67rem;
+  font-weight: 750;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: .42rem 0 .62rem;
+  color: var(--foam);
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-size: clamp(2.3rem, 6vw, 5.7rem);
+  font-weight: 900;
+  line-height: .76;
+  letter-spacing: -.035em;
+  text-transform: uppercase;
+  text-shadow: .07em .07em 0 color-mix(in srgb, var(--abyss) 70%, transparent);
+  transition: opacity 180ms ease, translate 180ms ease;
+}
+
+.eyebrow { transition: opacity 180ms ease; }
+
+.is-running h1,
+.is-running .eyebrow {
+  opacity: 0;
+  translate: -1rem 0;
+}
+
+#state {
+  display: inline-block;
+  padding: .28rem .48rem;
+  border-left: 3px solid var(--coral);
+  color: var(--foam);
+  background: color-mix(in srgb, var(--abyss) 72%, transparent);
+}
+
+.run {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: .12rem .75rem;
+  padding: .65rem .75rem;
+  border-top: 2px solid var(--surface);
+  background: color-mix(in srgb, var(--abyss) 76%, transparent);
+}
+
+.run strong {
+  min-width: 5.2ch;
+  color: var(--foam);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: clamp(1.35rem, 3.2vw, 2.7rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.07em;
+  text-align: right;
+}
+
+.run small { font-size: .43em; letter-spacing: 0; }
+.run .prey { color: var(--sand); }
+
+.controls {
+  position: fixed;
+  left: clamp(1rem, 3vw, 2.5rem);
+  bottom: clamp(1rem, 3vw, 2.5rem);
+  display: flex;
+  gap: 1.25rem;
+  color: var(--foam);
+  z-index: 10;
+  text-shadow: 0 1px 4px var(--abyss);
+}
+
+kbd {
+  padding: .16rem .38rem;
+  border: 1px solid currentColor;
+  border-radius: .18rem;
+  background: color-mix(in srgb, var(--abyss) 65%, transparent);
+  font: inherit;
+}
+
+#start {
+  position: fixed;
+  left: 50%;
+  bottom: 12%;
+  translate: -50% 0;
+  padding: .92rem 1.25rem;
+  border: 2px solid var(--foam);
+  border-radius: .2rem;
+  color: var(--abyss);
+  background: var(--coral);
+  box-shadow: 6px 6px 0 var(--abyss);
+  font: 850 .82rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  z-index: 20;
+  transition: translate 140ms ease, box-shadow 140ms ease;
+}
+
+#start:hover { translate: calc(-50% + 2px) 2px; box-shadow: 4px 4px 0 var(--abyss); }
+#start:focus-visible { outline: 4px solid var(--sand); outline-offset: 4px; }
+#start[hidden] { display: none; }
+
+@media (max-width: 580px) {
+  .controls span:nth-child(3) { display: none; }
+  .hud { padding-top: 1.1rem; }
+  .run { gap: 0 .42rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #start, h1, .eyebrow { transition: none; }
+}
