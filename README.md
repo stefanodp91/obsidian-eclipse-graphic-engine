@@ -96,6 +96,7 @@ Babylon.js, Havok integration, React, their upstream projects, and license infor
 
 GitHub Releases are generated automatically from semantic-version tags. Each release contains the
 core and Capacitor package tarballs, the built Endless Shark sample, and SHA-256 checksums. See
+the [`CHANGELOG.md`](CHANGELOG.md) for notable changes and
 [`docs/RELEASING.md`](docs/RELEASING.md) for the release procedure.
 
 ## License

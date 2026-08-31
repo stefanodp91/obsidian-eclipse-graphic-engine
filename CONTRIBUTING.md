@@ -39,4 +39,7 @@ License included with this repository.
 
 Pull requests do not run workflows in this repository. Contributors must run `npm run check`
 locally or in their own fork and report the result in the pull request. The repository owner runs
-CI after reviewing the contribution.
+the `Validate` workflow manually after reviewing the contribution; commits and pushes never start
+it. Pushes to `main` also never deploy GitHub Pages. The tagged `Deploy` workflow publishes the
+playable sample only after creating a successful GitHub Release. See the
+[release guide](docs/RELEASING.md) for the release and deployment procedure.
