@@ -1,6 +1,6 @@
 {
   "name": "obsidian-eclipse-graphic-engine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Independent Babylon.js runtime and performance engine with optional React and Capacitor adapters.",
   "type": "module",
   "license": "MIT",

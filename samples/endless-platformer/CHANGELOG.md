@@ -4,6 +4,8 @@ All notable changes to the Endless Shark sample are documented here.
 
 ## Unreleased
 
+## 0.1.1 - 2026-08-31
+
 ### Changed
 
 - Moved Babylon engine, scene, canvas, render-loop and disposal ownership to Reactylon while keeping
