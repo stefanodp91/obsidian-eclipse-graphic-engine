@@ -63,6 +63,8 @@ npm run dev
 Open <http://localhost:4173>. Vite prints the final URL in the terminal if that port is already in
 use.
 
+The camera framing, HUD and safe-area spacing adapt to both portrait and landscape screens.
+
 You can also start it from this directory after installing the root workspace dependencies:
 
 ```bash
@@ -140,3 +142,51 @@ npm run build
 ```
 
 The static output is written to `dist/`.
+
+## Android and iOS
+
+The sibling [`endless-platformer-capacitor`](../endless-platformer-capacitor/README.md) workspace
+packages this sample as a native Capacitor application and provides root-level `build:apk` and
+`build:ipa` commands.
+
+Two executable helpers cover native deployment. Run them from the Capacitor sample directory:
+
+```bash
+cd ../endless-platformer-capacitor
+
+# Build, install and launch on one connected Android or iOS target.
+./android.sh
+./ios.sh
+
+# Select an Android target explicitly.
+./android.sh --serial=R5CT123456A
+
+# Discover targets, then run on an iOS Simulator or physical device.
+./ios.sh list
+./ios.sh simulator [name-or-UDID] [iOS-version]
+./ios.sh device [name-or-UDID]
+```
+
+The Android script follows a scripted deployment flow: it selects the Homebrew JDK 21,
+discovers already connected `adb` targets, runs the web build and `cap sync`, assembles the debug
+APK, installs it and launches the app. It auto-selects a single target and prompts when several are
+connected. The iOS helper can boot a simulator; for duplicate simulator names, pass either the UDID
+or the runtime version, for example:
+
+```bash
+./ios.sh simulator "iPhone 17 Pro" 26.5
+```
+
+The iOS helper also exposes build and IDE workflows:
+
+```bash
+./ios.sh build           # unsigned Simulator .app
+./ios.sh ipa             # Apple team and signing identity required
+./ios.sh open            # Xcode
+```
+
+Every deployment rebuilds the web sample and executes `cap sync` before invoking the native
+toolchain. Android selects JDK 21 automatically; iOS device and IPA builds require macOS, Xcode and
+Apple signing. Standalone APK/IPA and IDE commands remain available as npm workspace scripts. The
+complete setup and artifact paths are documented in the
+[Capacitor sample guide](../endless-platformer-capacitor/README.md).

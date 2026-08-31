@@ -34,8 +34,9 @@ flowchart LR
   integration boundary.
 - Reactylon owns JSX-created Babylon entities and their disposal.
 - The graphic engine owns only resources explicitly created through its facade and adapters.
-- `samples/endless-platformer` is the only sample. It demonstrates how a procedural game uses the
-  engine-provided bridge without forcing generated models into JSX.
+- `samples/endless-platformer` remains the single gameplay implementation. It demonstrates how a
+  procedural game uses the engine-provided bridge without forcing generated models into JSX; its
+  sibling Capacitor workspace packages the same implementation for Android and iOS.
 
 ## Consequences
 

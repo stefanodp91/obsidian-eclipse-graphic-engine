@@ -37,6 +37,7 @@ import {
 import { AssetCache } from 'obsidian-eclipse-graphic-engine/cache';
 import { CHUNK_WIDTH, createChunkSpec, type PreySpec } from './level';
 import { oceanPoseAt } from './ocean';
+import { cameraLeadForAspect, verticalFovForAspect } from './responsive-camera';
 import { advanceVerticalSwim } from './swim-control';
 
 function requiredElement<T extends Element>(selector: string): T {
@@ -69,8 +70,19 @@ export function mountEndlessPlatformer(scene: Scene): () => void {
   scene.imageProcessingConfiguration.exposure = 0.92;
 
   const camera = new FreeCamera('side-camera', new Vector3(7.5, 0.6, -19), scene);
-  camera.setTarget(new Vector3(10, 0.15, 0));
-  camera.fov = 0.72;
+  let cameraLead = 8.1;
+  let cameraAnchorX = 3;
+  const updateCameraFraming = (): void => {
+    const width = Math.max(1, canvas.clientWidth);
+    const height = Math.max(1, canvas.clientHeight);
+    camera.fov = verticalFovForAspect(width / height);
+    cameraLead = cameraLeadForAspect(width / height);
+    camera.setTarget(new Vector3(cameraAnchorX + cameraLead, 0.15, 0));
+    canvas.dataset.orientation = width >= height ? 'landscape' : 'portrait';
+  };
+  updateCameraFraming();
+  const cameraResizeObserver = new ResizeObserver(updateCameraFraming);
+  cameraResizeObserver.observe(canvas);
   new HemisphericLight('water-fill', new Vector3(0, 1, -0.2), scene).intensity = 0.68;
   const sun = new DirectionalLight('surface-light', new Vector3(-0.3, -1, 0.25), scene);
   sun.intensity = 1.15;
@@ -317,6 +329,7 @@ export function mountEndlessPlatformer(scene: Scene): () => void {
     eatenCount = 0;
     biteTimer = 0;
     camera.position.x = 7.5;
+    cameraAnchorX = 3;
     distanceOutput.value = '0000';
     preyOutput.value = '00';
     speedOutput.value = '5.25';
@@ -426,7 +439,8 @@ export function mountEndlessPlatformer(scene: Scene): () => void {
     }
 
     camera.position.x += (shark.root.position.x + 5.8 - camera.position.x) * Math.min(1, dt * 5);
-    camera.setTarget(new Vector3(camera.position.x + 2.3, 0.1, 0));
+    cameraAnchorX = shark.root.position.x;
+    camera.setTarget(new Vector3(shark.root.position.x + cameraLead, 0.1, 0));
     distance = Math.max(0, shark.root.position.x - 3);
     distanceOutput.value = Math.floor(distance).toString().padStart(4, '0');
     speedOutput.value = velocityX.toFixed(2);
@@ -465,6 +479,7 @@ export function mountEndlessPlatformer(scene: Scene): () => void {
   });
 
   return () => {
+    cameraResizeObserver.disconnect();
     scene.onBeforeRenderObservable.remove(frameObserver);
     window.removeEventListener('keydown', keyDown);
     window.removeEventListener('keyup', keyUp);

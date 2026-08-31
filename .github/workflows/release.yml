@@ -52,6 +52,7 @@ jobs:
             'packages/core/package.json',
             'packages/capacitor/package.json',
             'samples/endless-platformer/package.json',
+            'samples/endless-platformer-capacitor/package.json',
             'samples/endless-platformer/models/package.json',
           ];
 

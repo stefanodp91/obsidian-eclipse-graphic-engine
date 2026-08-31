@@ -14,9 +14,14 @@ All notable changes to the Endless Shark sample are documented here.
 - Replaced repeated edge-triggered ascent with a balanced tap-and-hold control: tapping makes a
   fine correction, while holding applies gradual upward thrust capped at 3 m/s.
 - Applied the same press-and-hold behavior to keyboard, pointer and touch input.
+- Added aspect-aware camera framing, player composition, portrait HUD layout and native safe-area
+  spacing while preserving the authored landscape view.
 
 ### Added
 
 - A host-architecture regression test that prevents the sample from restoring direct Babylon
   engine or render-loop ownership.
 - Regression tests for quick-tap sensitivity and useful sustained ascent.
+- Responsive-camera regression tests for landscape framing, portrait limits and camera lead.
+- A sibling Capacitor 8 host with committed Android/iOS projects, APK/IPA build commands and
+  doctor-style launchers for physical devices, Android AVDs and iPhone Simulators.

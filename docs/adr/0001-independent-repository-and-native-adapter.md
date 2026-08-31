@@ -23,6 +23,8 @@ Maintain one public repository with independently installable packages:
 - `packages/capacitor` publishes `obsidian-eclipse-capacitor-plugins` and ships its Android/iOS code;
 - `samples/endless-platformer` is a Reactylon-hosted reference game that consumes the package's root
   `/cache`, and `/reactylon` exports while Reactylon owns the Babylon engine, scene, and render loop;
+- `samples/endless-platformer-capacitor` wraps that same game in committed Android and iOS reference
+  hosts, exercises Capacitor plugin discovery, and provides doctor-style device/emulator launchers;
 - the sample uses original art direction and platform mechanics, not Nintendo names or assets;
 - GitHub Releases package verified artifacts without requiring npm publication.
 
@@ -52,6 +54,8 @@ from one workspace.
 - Consumers install build output instead of compiling internal source paths.
 - Vanilla consumers do not need React or Capacitor.
 - Native releases require both the TypeScript build and native-contract check.
+- The native sample keeps platform generation, toolchain diagnostics, synchronization and device
+  deployment reproducible without making Capacitor a dependency of the browser sample.
 - Consumers must switch from source aliases only after the package passes its own typecheck, tests,
   library build, consumer build and package dry-run.
 - A later repository split of the Capacitor package remains possible because there is no runtime cycle.

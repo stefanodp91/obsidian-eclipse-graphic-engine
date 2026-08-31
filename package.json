@@ -13,7 +13,7 @@
   },
   "workspaces": ["packages/*", "samples/*"],
   "scripts": {
-    "build": "npm run build --workspace obsidian-eclipse-graphic-engine && npm run build --workspace obsidian-eclipse-capacitor-plugins && npm run build --workspace @obsidian-eclipse/sample-endless-platformer",
+    "build": "npm run build --workspace obsidian-eclipse-graphic-engine && npm run build --workspace obsidian-eclipse-capacitor-plugins && npm run build --workspace @obsidian-eclipse/sample-endless-platformer && npm run build --workspace @obsidian-eclipse/sample-endless-platformer-capacitor",
     "test": "npm test --workspace obsidian-eclipse-graphic-engine && npm test --workspace @obsidian-eclipse/sample-endless-platformer",
     "typecheck": "npm run typecheck --workspace obsidian-eclipse-graphic-engine && npm run build --workspace obsidian-eclipse-graphic-engine && npm run typecheck --workspace obsidian-eclipse-capacitor-plugins",
     "check:native": "npm run check:native-contract --workspace obsidian-eclipse-capacitor-plugins",
@@ -21,6 +21,10 @@
     "check:sensitive": "node scripts/check-sensitive.mjs",
     "check": "npm run check:sensitive && npm run typecheck && npm test && npm run check:native && npm run check:docs && npm run build",
     "dev": "npm run dev --workspace @obsidian-eclipse/sample-endless-platformer",
+    "android": "npm run android --workspace @obsidian-eclipse/sample-endless-platformer-capacitor --",
+    "build:apk": "npm run build:apk --workspace @obsidian-eclipse/sample-endless-platformer-capacitor",
+    "build:ipa": "npm run build:ipa --workspace @obsidian-eclipse/sample-endless-platformer-capacitor",
+    "ios": "npm run ios --workspace @obsidian-eclipse/sample-endless-platformer-capacitor --",
     "pack:dry-run": "npm pack --dry-run --workspace obsidian-eclipse-graphic-engine && npm pack --dry-run --workspace obsidian-eclipse-capacitor-plugins"
   }
 }
