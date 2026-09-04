@@ -358,10 +358,16 @@ vec3 celQuantizeLight(vec3 lit) {
 }
 
 #ifdef CEL
-float celPluginHatch(vec2 fragCoord, float shade) {
+// IL RETINO VIVE NELLA BANDA PIÙ SCURA, E SOLO LÌ — v. celHatch nel percorso
+// ShaderMaterial, dove la regola è la stessa riga per riga. rampU è la
+// coordinata 0..1 PRIMA della quantizzazione; la prima banda finisce a
+// 1/celRampBands, e la dissolvenza sull'ultimo 15% serve solo a non far
+// scattare il confine di un pixel.
+float celPluginHatch(vec2 fragCoord, float rampU) {
     if (celHatchStrength <= 0.0) return 1.0;
     float h = texture2D(celHatchSampler, fragCoord / max(celHatchScale, 1.0)).r;
-    float mask = 1.0 - smoothstep(0.30, 0.95, shade);
+    float edge = celRampBands > 0.5 ? 1.0 / celRampBands : 0.34;
+    float mask = 1.0 - smoothstep(edge * 0.85, edge, rampU);
     return 1.0 - (1.0 - h) * mask * celHatchStrength;
 }
 
@@ -375,12 +381,48 @@ float celPluginRim(vec3 n, vec3 v) {
 
 /** Retino e rim: applicati al colore composto, ma PRIMA di nebbia e grade.
  *  Dopo la nebbia il retino comparirebbe anche sugli oggetti lontani già
- *  dissolti, e dopo il grade cambierebbe intensità con la saturazione. */
+ *  dissolti, e dopo il grade cambierebbe intensità con la saturazione.
+ *
+ *  ⚠️ IL RETINO GUARDA LA LUCE, NON IL COLORE — e fino alla 0.1.1 guardava il
+ *  colore. La maschera riceveva `dot(color.rgb, ...)`, cioè la banda già
+ *  moltiplicata per l'albedo, quindi il tratteggio seguiva la TINTA
+ *  dell'oggetto invece della sua illuminazione: una pietra grigia in pieno sole
+ *  veniva tratteggiata perché è grigia, una superficie bianca in ombra restava
+ *  pulita perché è bianca, e una scena a tinte scure veniva tratteggiata da
+ *  bordo a bordo. La prova che non era la luce: con la ramp forzata tutta
+ *  bianca — nessuna ombra da nessuna parte — il retino restava.
+ *
+ *  Ora entra `celRampU`, la coordinata 0..1 sull'asse della rampa PRIMA della
+ *  quantizzazione: la stessa che `celQuantizeLight` usa per scegliere la banda,
+ *  ricalcolata qui con una moltiplicazione invece che con un secondo lookup in
+ *  texture. È anche la ragione per cui il confine sta sulla COORDINATA e non
+ *  sulla luminanza della banda: la tinta d'ombra è art-direction e cambia per
+ *  livello, mentre l'indice di banda è lo stesso ovunque.
+ *
+ *  ⚠️ L'EMISSIVO ENTRA NELLA MASCHERA, e non è un dettaglio: **una cosa che
+ *  emette luce non è in ombra**. La luce ricevuta e la luce propria sono due
+ *  cose diverse solo per il calcolo del colore; per il retino sono la stessa,
+ *  perché la domanda che deve porsi è «questa superficie è al buio?». Senza
+ *  questo termine un oggetto autoilluminato riceve zero, cade nella prima banda
+ *  e si prende il tratteggio pieno: misurato su un'app consumer, le bolle da
+ *  raccogliere — che brillano — sono uscite tratteggiate, mentre nella 0.1.1
+ *  erano pulite, perché lì la maschera guardava il colore finito e un oggetto
+ *  luminoso usciva chiaro. La regola nuova ha risolto un difetto e ne ha creato
+ *  un altro finché l'emissivo non è stato sommato qui.
+ *
+ *  Nelle varianti `EMISSIVEASILLUMINATION` e `LINKEMISSIVEWITHDIFFUSE`
+ *  l'emissivo è già dentro `diffuseBase` e viene contato due volte: sposta la
+ *  maschera solo verso «più illuminato», cioè verso meno retino, che è il verso
+ *  in cui sbagliare non rovina niente.
+ *
+ *  ⚠️ `diffuseBase` ed `emissiveColor` sono dichiarate SENZA guardia in
+ *  `default.fragment.fx`, prima del marcatore su cui si innesta questo blocco,
+ *  quindi sono sempre in scope. */
 const CEL_BEFORE_FOG = /* glsl */ `
 #ifdef CEL
 {
-    float celShade = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-    color.rgb *= celPluginHatch(gl_FragCoord.xy, celShade);
+    float celRampU = clamp(dot(diffuseBase + emissiveColor, vec3(0.299, 0.587, 0.114)) * celRampScale, 0.0, 1.0);
+    color.rgb *= celPluginHatch(gl_FragCoord.xy, celRampU);
     color.rgb = mix(color.rgb, celInkColor, celPluginRim(normalW, viewDirectionW));
 }
 #endif
@@ -654,6 +696,7 @@ class CelMaterialPlugin extends MaterialPluginBase {
                 { name: 'celRimWidth', size: 1, type: 'float' },
                 { name: 'celHatchStrength', size: 1, type: 'float' },
                 { name: 'celHatchScale', size: 1, type: 'float' },
+                { name: 'celRampBands', size: 1, type: 'float' },
                 { name: 'celInkColor', size: 3, type: 'vec3' },
             ],
             // Le uniform SCALARI compaiono sia qui sia nella `ubo` sopra, e le
@@ -695,6 +738,7 @@ class CelMaterialPlugin extends MaterialPluginBase {
                 uniform float celRimWidth;
                 uniform float celHatchStrength;
                 uniform float celHatchScale;
+                uniform float celRampBands;
                 uniform vec3 celInkColor;
             #endif`,
         };
@@ -767,6 +811,10 @@ class CelMaterialPlugin extends MaterialPluginBase {
         uniformBuffer.updateFloat('celRimWidth', settings.rimWidth);
         uniformBuffer.updateFloat('celHatchStrength', settings.hatchStrength);
         uniformBuffer.updateFloat('celHatchScale', settings.hatchScale);
+        // I gradini viaggiano anche come scalare: dentro la texture della ramp
+        // sono già cotti, e il retino ha bisogno di sapere DOVE finisce la banda
+        // d'ombra, non di che colore è.
+        uniformBuffer.updateFloat('celRampBands', settings.ramp.bands);
         uniformBuffer.updateColor3('celInkColor', settings.inkColor);
         // Le texture vanno legate a ogni bind (il sampler è per-effect), ma il
         // lookup in cache è O(1) e le due `getCel*` non ricostruiscono nulla se
