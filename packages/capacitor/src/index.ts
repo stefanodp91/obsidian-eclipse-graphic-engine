@@ -150,7 +150,7 @@ export async function readBatteryStatus(): Promise<BatteryStatus | null> {
 const prefsFallbackReported = new Set<string>();
 
 function reportPrefsFallback(op: string, err: unknown): void {
-    if (!isNativePlatform()) return;   // su web localStorage È il backing previsto
+    if (!isNativePlatform()) return;   // on web, localStorage IS the intended backing store
     if (prefsFallbackReported.has(op)) return;
     prefsFallbackReported.add(op);
     reportNativeError('native.prefs', err, { op, fallback: 'localStorage', durable: false });
@@ -345,7 +345,7 @@ export async function getRefreshInfo(): Promise<RefreshInfo | null> {
 }
 
 /** Compose the engine's NativeServices port from the Capacitor-backed functions
- *  above. The game injects this into the engine (engineHandles.nativeServices). */
+ *  above. The consumer injects this into the engine (engineHandles.nativeServices). */
 export function createCapacitorNativeServices(): NativeServices {
     return {
         get isNative() { return isNativePlatform(); },

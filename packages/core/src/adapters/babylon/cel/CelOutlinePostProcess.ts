@@ -22,9 +22,9 @@ import {
 //
 // `renderOutline` / `outlineWidth` / `outlineColor` are NOT native properties of
 // `AbstractMesh`: this module attaches them, together with the renderer that
-// draws them. The game imports Babylon à la carte, so without this line
-// `mesh.renderOutline` is `undefined` — not `false` — and writing to it does
-// nothing and raises no error.
+// draws them. A consumer importing Babylon à la carte will not have it, so
+// without this line `mesh.renderOutline` is `undefined` — not `false` — and
+// writing to it does nothing and raises no error.
 //
 // It costs an hour to find that out from the symptom: the hull outline looked
 // FREE (54 fps against the post-process's 33) and in fact was not being drawn at
