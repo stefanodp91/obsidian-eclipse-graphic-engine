@@ -7,6 +7,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-04
+
 ### Fixed
 
 - Cel material plugin: the hatching mask now reads the quantized light band instead of the final
@@ -28,7 +30,7 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`1/bands` on the pre-quantization ramp axis, with a short fade over its last 15%), which also
   makes it independent of the shadow tint — that tint is art direction and changes per level, while
   the band index does not. The ramp's band count reaches the shader as the new `celRampBands`
-  uniform; `bands = 0` (the lab's continuous ramp, where no darkest band exists) falls back to the
+  uniform; `bands = 0` (a continuous ramp, where no darkest band exists) falls back to the
   lower third of the axis.
 
   The mask counts **self-emitted light as light** (`diffuseBase + emissiveColor`): a surface that
@@ -41,6 +43,25 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Visible change for consumers who rely on hatching over midtones: it now reads as a shadow
   treatment rather than a surface texture. The mask needs no texture lookup of its own — it
   recomputes the ramp coordinate with a dot product — so this is not more expensive than 0.1.1.
+
+- **Breaking (shader chunks).** `celHatch` in the exported `CEL_FRAGMENT_FUNCTIONS` chunk takes the
+  ramp coordinate and the band count instead of a shade value, and `CEL_FRAGMENT_UNIFORMS` declares
+  a new required `celRampBands`:
+
+  ```glsl
+  - float celHatch(vec2 fragCoord, float shade, float scale, float strength)
+  + float celHatch(vec2 fragCoord, float rampU, float bands, float scale, float strength)
+  ```
+
+  `celRampCoord` and `celHatchMask` are new alongside them. Consumers on the `MaterialPluginBase`
+  path need no changes. Anyone who binds these chunks into their own `ShaderMaterial` must pass the
+  new argument and declare the uniform — an undeclared identifier does not compile. The cel
+  subsystem remains an experimental prototype outside the engine's stable contract.
+
+- Every source comment is now written in English and phrased for readers outside this project.
+  Internal references to a particular downstream application, its levels and its assets were
+  replaced with neutral descriptions, keeping the measurements intact. Two developer-facing strings
+  changed with them: the `celLookRange` error message and the device-probe warning.
 
 ## [0.1.1] - 2026-08-31
 
@@ -65,6 +86,7 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Initial independent release of the Babylon.js core, Capacitor adapters and Endless Shark sample.
 
-[Unreleased]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/releases/tag/v0.1.0
