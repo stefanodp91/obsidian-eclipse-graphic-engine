@@ -152,7 +152,7 @@ export {
     runDeviceProbe,
 } from './DeviceProbe';
 
-// Prototipo cel-shading (branch proto/cel-shading) — vedi ./cel/index.ts.
-// Ri-esportato in blocco: è un sottosistema sperimentale, non fa parte del
-// contratto stabile del motore e va tolto in blocco se il look non passa.
+// Cel-shading prototype (branch proto/cel-shading) — see ./cel/index.ts.
+// Re-exported wholesale: it is an experimental subsystem, it is not part of the
+// engine's stable contract, and it comes out wholesale if the look does not pass.
 export * from './cel';

@@ -10,23 +10,24 @@ import { Logger } from '@babylonjs/core';
 const SWAP_CHAIN_NOISE  = 'WebgpuSwapChainTexture';
 const INSTANCE_MAT_NOISE = 'Setting material on an instanced mesh';
 
-// ⚠️ Questo modulo scrive su oggetti GLOBALI che non gli appartengono
-// (`console`, `Logger` di Babylon). Tre proprietà lo rendono accettabile per una
-// libreria, e vanno mantenute tutte e tre:
+// ⚠️ This module writes to GLOBAL objects that do not belong to it (`console`,
+// Babylon's `Logger`). Three properties make that acceptable for a library, and
+// all three have to be maintained:
 //
-//  1. IDEMPOTENZA — due chiamate non devono impilare due filtri. Prima non
-//     c'era guardia: una seconda chiamata (rimonto della scena, hot quality-change,
-//     StrictMode) avvolgeva il wrapper precedente, e ogni ciclo aggiungeva uno
-//     strato. Il costo cresce a ogni giro e i pattern si sommano per sempre.
-//  2. REVERSIBILITÀ — chi accende deve poter spegnere. Senza, un motore disposto
-//     lascia la `console` dell'applicazione ospite dirottata a vita, verso
-//     chiusure che tengono in piedi engine e pattern morti.
-//  3. ADDITIVITÀ dei pattern — chiamate successive con pattern diversi li
-//     accumulano nello stesso filtro invece di sostituirlo.
+//  1. IDEMPOTENCE — two calls must not stack two filters. There used to be no
+//     guard: a second call (scene remount, hot quality change, StrictMode)
+//     wrapped the previous wrapper, and every cycle added a layer. The cost grows
+//     with each round and the patterns accumulate forever.
+//  2. REVERSIBILITY — whoever switches it on has to be able to switch it off.
+//     Without that, a disposed engine leaves the host application's console
+//     filtered forever, and the filter's closures keep dead engines and patterns
+//     alive.
+//  3. ADDITIVITY of the patterns — subsequent calls with different patterns
+//     accumulate them in the same filter instead of replacing it.
 //
-// Il filtro applicato a `console.error` resta la parte più invasiva: intercetta
-// anche gli errori dell'ospite. È limitato al confronto per sottostringa sul
-// primo argomento stringa, e i pattern sono espliciti — nessuna euristica.
+// The filter applied to `console.error` remains the most invasive part: it
+// intercepts the host's errors too. It is limited to a substring match on the
+// first string argument, and the patterns are explicit — no heuristics.
 interface NoiseState {
     patterns: Set<string>;
     restore: () => void;
@@ -35,7 +36,7 @@ interface NoiseState {
 let state: NoiseState | null = null;
 
 export function suppressLogNoise(engine: AbstractEngine, additionalPatterns: string[] = []): void {
-    // Già installato: si aggiungono solo i pattern nuovi al filtro esistente.
+    // Already installed: only the new patterns are added to the existing filter.
     if (state) {
         for (const p of additionalPatterns) state.patterns.add(p);
         return;
@@ -100,9 +101,9 @@ export function suppressLogNoise(engine: AbstractEngine, additionalPatterns: str
     };
 }
 
-/** Ripristina `console` e `Logger` allo stato precedente. Da chiamare al teardown
- *  del motore: senza, la console dell'applicazione ospite resta filtrata (e le
- *  chiusure del filtro tengono vivo l'engine) anche dopo il dispose. */
+/** Restores `console` and `Logger` to their previous state. To be called at
+ *  engine teardown: without it, the host application's console stays filtered
+ *  (and the filter's closures keep the engine alive) even after the dispose. */
 export function restoreLogNoise(): void {
     state?.restore();
     state = null;

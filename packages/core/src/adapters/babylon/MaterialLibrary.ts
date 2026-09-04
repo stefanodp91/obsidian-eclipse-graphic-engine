@@ -15,7 +15,7 @@ import type { QualityPreset } from '../../domain/qualityTypes';
 
 // ── Provider injection ────────────────────────────────────────────────────────
 // Wire the app-side store lookup. Call once at scene-ready before first acquire.
-// Default 'mobile-mid' makes the library usable in tests / storybook without
+// Default 'mobile-mid' makes the library usable in tests and workbenches without
 // a wired store.
 
 let _getQualityPreset: () => QualityPreset = () => 'mobile-mid';
@@ -59,11 +59,11 @@ function getPBRMap(scene: Scene): Map<string, PBREntry> {
 
 function applyProfileMaterialTweaks(mat: StandardMaterial): void {
     const profile = getActiveEngineProfile(_getQualityPreset());
-    // `disableLighting` è incompatibile col cel per costruzione: le bande si
-    // ricavano dalla luce ACCUMULATA, e senza passata di illuminazione non c'è
-    // nulla da quantizzare — il materiale uscirebbe piatto, senza un errore da
-    // nessuna parte. Il risparmio che quel flag cerca, sotto cel si ottiene con
-    // meno bande, non spegnendo le luci.
+    // `disableLighting` is incompatible with cel by construction: the bands are
+    // derived from ACCUMULATED light, and with no lighting pass there is nothing
+    // to quantize — the material would come out flat, with no error anywhere. The
+    // saving that flag is after is obtained, under cel, with fewer bands, not by
+    // turning the lights off.
     if (profile.disableLighting && decorShadingMode !== 'cel') {
         mat.disableLighting = true;
     }
@@ -91,30 +91,30 @@ export function createUnlitEmissiveCrystalMat(name: string, scene: Scene, color:
 }
 
 /**
- * Superficie che si illumina DA SÉ, tenendo il colore nei VERTICI.
+ * A surface that lights ITSELF, keeping the color in the VERTICES.
  *
- * È `createUnlitEmissiveMat` per una mesh a colore-per-vertice: là il colore è
- * una uniform e l'oggetto esce di una tinta sola, qui l'emissivo è bianco e a
- * dargli il colore è il vertice. Nello StandardMaterial funziona perché
- * `finalDiffuse = clamp(diffuseBase*diffuseColor + emissiveColor + ambient)`
- * viene poi MOLTIPLICATO per `baseColor`, dentro cui è già entrato `vColor`:
- * con il diffuse a nero e l'emissivo a uno, quello che resta a schermo è
- * esattamente la tinta dipinta nei vertici, a piena intensità e senza che
- * nessuna luce di scena la tocchi.
+ * It is `createUnlitEmissiveMat` for a vertex-colored mesh: there the color is a
+ * uniform and the object comes out in a single tint, here the emissive is white
+ * and it is the vertex that gives it its color. In StandardMaterial this works
+ * because `finalDiffuse = clamp(diffuseBase*diffuseColor + emissiveColor +
+ * ambient)` is then MULTIPLIED by `baseColor`, into which `vColor` has already
+ * entered: with diffuse at black and emissive at one, what is left on screen is
+ * exactly the tint painted in the vertices, at full intensity and with no scene
+ * light touching it.
  *
- * Serve per ciò che EMETTE invece di essere illuminato — un fungo
- * bioluminescente, una vena di lava, una runa accesa: oggetti a cui una scena
- * notturna non deve poter togliere luminosità, perché la loro è propria.
+ * It is for things that EMIT rather than being lit — a bioluminescent mushroom, a
+ * vein of lava, a lit rune: objects a night scene must not be able to take
+ * brightness away from, because theirs is their own.
  *
- * ⚠️ In un mondo cel va accompagnata da `excludeFromCel`: non c'è luce
- * accumulata da quantizzare (`disableLighting`), quindi il plugin non ha nulla
- * da fare qui — e il contorno a inchiostro invece resta, che è ciò che si vuole
- * (una forma che brilla ma è ancora disegnata).
+ * ⚠️ In a cel world it has to be paired with `excludeFromCel`: there is no
+ * accumulated light to quantize (`disableLighting`), so the plugin has nothing to
+ * do here — while the ink outline does remain, which is what we want (a shape
+ * that glows but is still drawn).
  *
- * `gain` sotto 1 spegne, sopra 1 spinge verso il bianco: oltre l'unità la
- * clamp dello shader satura i canali già alti prima degli altri, quindi è una
- * leva di BRUCIATURA, non di luminosità — si alza solo se il bianco caldo al
- * centro è l'effetto voluto.
+ * `gain` below 1 dims it, above 1 pushes towards white: past unity the shader's
+ * clamp saturates the already-high channels before the others, so it is a
+ * BURN-OUT lever, not a brightness one — raise it only if warm white at the
+ * center is the intended effect.
  */
 export function createSelfLitVertexColorMat(
     name: string, scene: Scene, gain = 1,
@@ -130,28 +130,26 @@ export function createSelfLitVertexColorMat(
 export function createLitVertexColorMat(
     name: string,
     scene: Scene,
-    /** Floor emissivo. Omesso = default decor (riferimento della taratura
-     *  ShadingLab). Un valore ESPLICITO è una scelta di art-direction per quella
-     *  superficie e viene rispettato alla lettera — vedi `FLAT_EMISSIVE_FLOOR_K`. */
+    /** Emissive floor. Omitted = decor default (the reference used when calibrating
+     *  the shading defaults). An EXPLICIT value is an art-direction choice for that surface
+     *  and is honored to the letter — see `FLAT_EMISSIVE_FLOOR_K`. */
     emissiveFloor?: Color3,
     forceFlat = false,
 ): StandardMaterial {
     const floor = emissiveFloor ?? DECOR_EMISSIVE_FLOOR;
-    // Branch cel: il chiaroscuro arriva dal plugin (bande quantizzate sulla luce
-    // accumulata), quindi qui serve un materiale NUDO — bianco, senza specular e
-    // soprattutto SENZA floor emissivo.
+    // Cel branch: the shading comes from the plugin (bands quantized on the
+    // accumulated light), so what is needed here is a BARE material — white, with
+    // no specular and above all WITHOUT an emissive floor.
     //
-    // Il floor va tolto, non ridotto: è una lift additiva uniforme, e sommata
-    // dopo la quantizzazione riporta tutte le bande verso l'alto fino a
-    // schiacciarle l'una sull'altra. È lo stesso motivo per cui il matcap ne
-    // usa una versione scalata invece che piena, portato alla conclusione: col
-    // cel il pavimento dell'ombra è il gradino più basso della ramp, e ce n'è
-    // uno solo.
+    // The floor has to be removed, not reduced: it is a uniform additive lift, and
+    // summed after quantization it pushes all the bands upwards until they are
+    // squashed onto one another. It is the same reason the matcap uses a scaled
+    // version of it instead of the full one, taken to its conclusion: with cel the
+    // shadow's floor is the ramp's lowest step, and there is only one of them.
     //
-    // Un floor ESPLICITO viene comunque ignorato in questo ramo: era
-    // art-direction tarata contro il modello di illuminazione precedente, e
-    // trascinarla qui significherebbe portarsi dietro una compensazione per un
-    // problema che non esiste più.
+    // An EXPLICIT floor is ignored in this branch too: it was art direction tuned
+    // against the previous lighting model, and dragging it in here would mean
+    // carrying along a compensation for a problem that no longer exists.
     if (decorShadingMode === 'cel') {
         const m = new StandardMaterial(name, scene);
         m.diffuseColor = Color3.White();
@@ -159,13 +157,13 @@ export function createLitVertexColorMat(
         m.emissiveColor = Color3.Black();
         return m;
     }
-    // Branch S2: quando il mode decor è matcap, la stessa factory instrada al
-    // sibling matcap, scalando il floor (la ramp porta il chiaroscuro — un floor
-    // pieno la laverebbe via). Mode 'flat' = path storico.
-    // `forceFlat`: opt-out per le superfici a GRANDE area schermo (ground tiles,
-    // backdrop) — misura A25 2026-07-24: il reflection path per-fragment su
-    // area piena costa ~+2ms p95 fino a rompere il gate mid; il matcap
-    // resta sul decor medio-piccolo dove è stato giudicato.
+    // Matcap branch: when the decor mode is matcap, the same factory routes to the
+    // matcap sibling, scaling the floor (the ramp carries the shading — a full
+    // floor would wash it away). Mode 'flat' = the historical path.
+    // `forceFlat`: an opt-out for LARGE screen-area surfaces (ground tiles,
+    // backdrops) — mid-tier Android measurement, 2026-07-24: the per-fragment
+    // reflection path over a full area costs ~+2ms p95, enough to break the mid
+    // gate; the matcap stays on small-to-medium decor, where it was judged.
     if (!forceFlat && decorShadingMode !== 'flat') {
         return createMatcapVertexColorMat(
             name, scene, decorShadingMode,
@@ -177,14 +175,15 @@ export function createLitVertexColorMat(
 }
 
 /** Il materiale decor STORICO — flat lit + vertex color + floor emissivo —
- *  costruito DIRETTAMENTE, senza passare dal mode di shading della scena.
+/** The HISTORICAL decor material — flat lit + vertex color + emissive floor —
+ *  built DIRECTLY, without going through the scene's shading mode.
  *
- *  Esiste per chi deve restare fuori dal linguaggio del mondo: sotto cel la
- *  factory qui sopra restituisce un materiale nudo, giusto per una superficie
- *  che il plugin quantizzerà e sbagliato per una che ne è esclusa (uscirebbe
- *  senza chiaroscuro E senza bande, cioè piatta e spenta). Chi la chiama si
- *  prende anche l'onere di `excludeFromCel`: questa funzione sceglie la ricetta,
- *  non l'esclusione. */
+ *  It exists for whoever has to stay outside the world's visual language: under
+ *  cel the factory above returns a bare material, which is right for a surface the
+ *  plugin will quantize and wrong for one excluded from it (it would come out with
+ *  no shading AND no bands, i.e. flat and dull). Whoever calls it also takes on
+ *  the burden of `excludeFromCel`: this function picks the recipe, not the
+ *  exclusion. */
 export function createFlatLitVertexColorMat(
     name: string,
     scene: Scene,
@@ -193,12 +192,13 @@ export function createFlatLitVertexColorMat(
     const m = new StandardMaterial(name, scene);
     m.diffuseColor  = Color3.White();
     m.specularColor = Color3.Black();
-    // Path flat = tier `lo` (dove il matcap non arriva per dottrina low-stricter)
-    // + le superfici `forceFlat` di flagship/mid. Erano le uniche parti di scena
-    // rimaste col floor PIENO, cioè esattamente il look "plastica dipinta" che
-    // l'asse EmissiveFloor del lab ha bocciato: applica lì il candidato
-    // approvato (×0.42). Un floor esplicito resta verbatim — è art-direction
-    // per-superficie e non va riscalato alla cieca.
+    // Flat path = the `lo` tier (where the matcap deliberately does not reach,
+    // since the low tier is held to a stricter budget) + the `forceFlat` surfaces
+    // of the flagship and mid tiers. They were the only parts of the scene left
+    // with the FULL floor, i.e. exactly the "painted plastic" look the isolated
+    // emissive-floor tuning axis rejected: apply the approved candidate (×0.42)
+    // there. An explicit floor stays verbatim — it is per-surface art direction
+    // and must not be rescaled blindly.
     m.emissiveColor = emissiveFloor ?? DECOR_EMISSIVE_FLOOR.scale(FLAT_EMISSIVE_FLOOR_K);
     return m;
 }
@@ -222,71 +222,71 @@ export function createFlatLitMat(
 // calls / meshes / masters / render passes — it folds into the decor material.
 // It replaces the flat-vertex-color "plastica dipinta" look on flagship/mid
 // decor with a real light→shadow ramp. On a CPU-bound frame this is free (it
-// swaps lit math for a texture read). Prototyped in Storybook before wiring into
-// the game (createLitVertexColorMat branch stays default-OFF until owner sign-off).
+// swaps lit math for a texture read). Prototyped in a component workbench before wiring into
+// consumer scenes (createLitVertexColorMat branch stays default-OFF until explicitly enabled).
 
 export type DecorMatcapKind = 'soft' | 'rock';
 
-/** Mode globale dello shading decor: 'flat' (default, stato attuale) oppure uno
- *  dei matcap kind. Va impostato al boot, PRIMA che i master decor vengano
- *  costruiti: i materiali già creati non vengono retrofittati. Sprint 2
- *  impalcatura — il gioco non lo chiama ancora (accensione = Sprint 4). */
+/** Global decor shading mode: 'flat' (default, current state) or one of the
+ *  matcap kinds. It has to be set at boot, BEFORE the decor masters are built:
+ *  materials already created are not retrofitted. Scaffolding — consumers
+ *  do not call it yet (it is switched on by a later opt-in). */
 export type DecorShadingMode = 'flat' | 'cel' | DecorMatcapKind;
 
 let decorShadingMode: DecorShadingMode = 'flat';
 
-/** Pacchetto G4 approvato dall'owner (taratura ShadingLab, 3 giri 2026-07-24):
- *  matcap soft ATTENUATO — il livello additivo pieno (0.38) lavava la struttura
- *  dei vertex color. Level 0.22 + floor ×0.7 = chiaroscuro di forma con i
- *  colori del flat. */
+/** Reviewed G4 package (shading calibration, 3 rounds, 2026-07-24):
+ *  ATTENUATED soft matcap — the full additive level (0.38) washed out the vertex
+ *  color structure. Level 0.22 + floor ×0.7 = shape shading with the flat path's
+ *  colors. */
 export const MATCAP_G4_LEVEL = 0.22;
 
-/** AO cavity bakeata nei vertex color (applyBakedSunLight) quando il pacchetto
- *  G4 è attivo — taratura owner: 0.6 (colonna destra CavityAO). Costo runtime
- *  zero (solo bake-time). */
+/** Cavity AO baked into the vertex colors (applyBakedSunLight) when the G4
+ *  package is active — calibrated value: 0.6 (CavityAO right column). Zero
+ *  runtime cost (bake-time only). */
 export const MATCAP_G4_CAVITY = 0.6;
 
-/** Fattore di riduzione dell'emissive floor quando il matcap è attivo
- *  (taratura owner giro 3: ×0.7, non il ×0.42 del rapporto fra i default —
- *  col matcap attenuato il floor scende meno). */
+/** Reduction factor for the emissive floor when the matcap is active (calibration
+ *  round 3: ×0.7, not the ×0.42 of the ratio between the defaults —
+ *  with an attenuated matcap the floor drops less). */
 export const MATCAP_EMISSIVE_FLOOR_K = 0.7;
 
-/** Floor emissivo di riferimento del decor — il valore su cui è stata fatta
- *  TUTTA la taratura ShadingLab (gli assi del lab partono da qui). Non è più il
- *  valore spedito sul path flat: vedi `FLAT_EMISSIVE_FLOOR_K`. */
+/** The decor's reference emissive floor — the value ALL the shading calibration was
+ *  done against (the tuning axes start from here). It is no longer
+ *  the value shipped on the flat path: see `FLAT_EMISSIVE_FLOOR_K`. */
 export const DECOR_EMISSIVE_FLOOR = new Color3(0.34, 0.32, 0.30);
 
-/** Riduzione del floor sul path FLAT (tier `lo` + superfici `forceFlat`), dove
- *  non arriva il matcap: candidato approvato sull'asse isolato EmissiveFloor del
- *  lab (giro 2, ×0.42). Il matcap usa il suo ×0.7 perché aggiunge luce propria —
- *  le due riduzioni non si sommano mai, i due rami sono alternativi. */
+/** Floor reduction on the FLAT path (tier `lo` + `forceFlat` surfaces), where the
+ *  matcap does not reach: the candidate approved on the isolated
+ *  emissive-floor tuning axis (round 2, ×0.42). The matcap uses its own ×0.7 because it
+ *  adds light of its own — the two reductions never stack, the two branches are
+ *  alternatives. */
 export const FLAT_EMISSIVE_FLOOR_K = 0.42;
 
 export function setDecorShadingMode(mode: DecorShadingMode): void {
     decorShadingMode = mode;
 }
 
-// ── Leva di MISURA per il congelamento sotto cel ─────────────────────────────
+// ── MEASUREMENT lever for freezing under cel ───────────────────────────────
 //
-// Sotto cel i materiali Standard NON vengono congelati, perché un materiale
-// congelato non ricarica le uniform e il plugin cel le carica in `bindForSubMesh`.
-// Il costo di quella rinuncia (niente re-bind saltato, niente world matrix
-// riusata) non è mai stato misurato — il commento in `acquireMaterial` lo dice
-// esplicitamente.
+// Under cel, Standard materials are NOT frozen, because a frozen material does
+// not re-upload its uniforms and the cel plugin uploads them in `bindForSubMesh`.
+// The cost of giving that up (no skipped re-bind, no reused world matrix) has
+// never been measured — the comment in `acquireMaterial` says so explicitly.
 //
-// ⚠️ Accendere questa leva RENDERIZZA SBAGLIATO di proposito: la ramp viene
-// campionata a t=0 e la scena esce nella banda più scura. Serve a quantificare
-// il costo del percorso non-congelato, per decidere se vale la pena costruire il
-// fix vero (congelare, e scongelare/ri-legare solo quando `configureCelPlugin`
-// cambia le impostazioni — che cambiano a ingresso mondo, non per frame).
-// Default `false` = comportamento corrente. Non è una configurazione da spedire.
+// ⚠️ Turning this lever on RENDERS WRONG on purpose: the ramp is sampled at t=0
+// and the scene comes out in the darkest band. It serves to quantify the cost of
+// the non-frozen path, to decide whether it is worth building the real fix
+// (freeze, and unfreeze/re-bind only when `configureCelPlugin` changes the
+// settings — which changes on world entry, not per frame). Default `false` =
+// current behavior. This is not a configuration to ship.
 let celFreezeMaterials = false;
 
 export function setCelFreezeMaterials(on: boolean): void {
     celFreezeMaterials = on;
 }
 
-/** True quando i materiali vanno congelati anche sotto cel (solo misura). */
+/** True when materials are to be frozen under cel too (measurement only). */
 export function shouldFreezeUnderCel(): boolean {
     return celFreezeMaterials;
 }
@@ -295,8 +295,9 @@ export function getDecorShadingMode(): DecorShadingMode {
     return decorShadingMode;
 }
 
-// Chiave cache: `${kind}@${level}` — il level additivo è tarabile per-materiale
-// (un matcap troppo additivo lava i vertex color, feedback owner 2026-07-24).
+// Cache key: `${kind}@${level}` — the additive level is tunable per material (a
+// matcap that is too additive washes out the vertex colors, review feedback
+// 2026-07-24).
 const matcapCache = new WeakMap<Scene, Map<string, DynamicTexture>>();
 
 function buildDecorMatcap(scene: Scene, kind: DecorMatcapKind): DynamicTexture {
@@ -305,7 +306,7 @@ function buildDecorMatcap(scene: Scene, kind: DecorMatcapKind): DynamicTexture {
     const ctx = dt.getContext() as unknown as CanvasRenderingContext2D;
     // Light from the upper-left; radial falloff to a dark rim (the unlit side of
     // the sphere). 'rock' = higher-contrast ramp + a tight specular hotspot
-    // (glossy basalt); 'soft' = low-contrast matte ramp (foliage / organic).
+    // (glossy stone); 'soft' = low-contrast matte ramp (foliage / organic).
     const lx = SIZE * 0.36, ly = SIZE * 0.32;
     const grad = ctx.createRadialGradient(lx, ly, SIZE * 0.04, SIZE * 0.5, SIZE * 0.5, SIZE * 0.72);
     if (kind === 'rock') {
@@ -316,7 +317,7 @@ function buildDecorMatcap(scene: Scene, kind: DecorMatcapKind): DynamicTexture {
     } else {
         grad.addColorStop(0.00, '#e8e8e8');
         grad.addColorStop(0.50, '#8f8f8f');
-        grad.addColorStop(1.00, '#333333');   // deeper shadow side → più forma, meno "plastilina"
+        grad.addColorStop(1.00, '#333333');   // deeper shadow side → more shape, less "plasticine"
     }
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, SIZE, SIZE);
@@ -337,8 +338,8 @@ function buildDecorMatcap(scene: Scene, kind: DecorMatcapKind): DynamicTexture {
 }
 
 /** Shared per-scene procedural matcap: ONE 128² texture per (kind, level) →
- *  every decor material of that combo reuses it (CPU-neutral). `level` override
- *  del contributo additivo (default per-kind: rock 0.55 / soft 0.38). */
+ *  every decor material of that combo reuses it (CPU-neutral). `level` overrides
+ *  the additive contribution (per-kind defaults: rock 0.55 / soft 0.38). */
 export function getDecorMatcap(scene: Scene, kind: DecorMatcapKind = 'soft', level?: number): DynamicTexture {
     let m = matcapCache.get(scene);
     if (!m) { m = new Map(); matcapCache.set(scene, m); }
@@ -356,7 +357,7 @@ export function getDecorMatcap(scene: Scene, kind: DecorMatcapKind = 'soft', lev
  *  vertex-color-driven albedo, but with a matcap sphere-map adding a view-
  *  dependent shape gradient (one fragment lookup, no new DC/mesh/pass). The
  *  emissive floor is LOWER than the flat variant because the matcap now carries
- *  the light→shadow ramp instead of a flat lift. Default-OFF in the game: reached
+ *  the light→shadow ramp instead of a flat lift. Default-OFF for consumers: reached
  *  only when the tier branch (or a story) asks for it. */
 export function createMatcapVertexColorMat(
     name: string,
@@ -386,16 +387,16 @@ export function acquireMaterial(
         const mat = new StandardMaterial(key, scene);
         factory(mat);
         applyProfileMaterialTweaks(mat);
-        // Un materiale congelato NON ricarica le uniform dopo il primo bind, e
-        // il plugin cel le carica proprio lì (`bindForSubMesh`). Congelarlo
-        // lascia `celRampScale` a zero, la ramp viene campionata a t=0 e ogni
-        // superficie esce nella banda più scura: una scena uniformemente buia
-        // che non reagisce a NESSUNA taratura — il sintomo più fuorviante
-        // possibile, perché somiglia a un errore di calibrazione.
+        // A frozen material does NOT re-upload its uniforms after the first bind,
+        // and the cel plugin uploads them exactly there (`bindForSubMesh`).
+        // Freezing it leaves `celRampScale` at zero, the ramp is sampled at t=0
+        // and every surface comes out in the darkest band: a uniformly dark scene
+        // that reacts to NO tuning at all — the most misleading symptom possible,
+        // because it looks like a calibration error.
         //
-        // Il congelamento è un'ottimizzazione reale (salta il ricalcolo della
-        // world matrix e il re-bind), quindi rinunciarci ha un costo: è una
-        // delle voci che il gate perf su A25 deve misurare.
+        // Freezing is a real optimization (it skips recomputing the world matrix
+        // and the re-bind), so giving it up has a cost: it is one of the items the
+        // mid-tier performance gate has to measure.
         if (decorShadingMode !== 'cel' || celFreezeMaterials) mat.freeze();
         entry = { mat, refs: 0 };
         m.set(key, entry);
@@ -432,29 +433,27 @@ export function acquirePBRMaterial(
     entry.refs++;
     return entry.mat;
 }
-
 /**
- * Materiale a due strade: PBR dove la luce è accesa, Standard dove non lo è.
+ * A two-road material: PBR where lighting is on, Standard where it is not.
  *
- * ⚠️ SOTTO CEL LA SCELTA NON ESISTE — e la sua assenza era un difetto muto.
+ * ⚠️ UNDER CEL THE CHOICE DOES NOT EXIST — and its absence was a silent defect.
  *
- * Il plugin cel vive su `StandardMaterial` e su nient'altro: su un PBR non si
- * attacca affatto. Senza questo ramo, ogni oggetto acquisito da qui su un
- * telefono di fascia alta o media (dove `disableLighting` è falso) usciva
- * illuminato in PBR **dentro un mondo cel** — nessun errore, nessun avviso, e a
- * schermo una manciata di oggetti lucidi in mezzo a una scena a bande. È lo
- * stesso difetto che il banco `cel/` aveva pagato in vetrina, dove il modo
- * cotto non disegnava niente perché `tryBakeCelHull` rifiuta in silenzio ogni
- * materiale non-Standard: la stessa regola, dall'altro lato.
+ * The cel plugin lives on `StandardMaterial` and on nothing else: on a PBR it
+ * does not attach at all. Without this branch, every object acquired from here on
+ * a flagship or mid-range phone (where `disableLighting` is false) came out lit in
+ * PBR **inside a cel world** — no error, no warning, and on screen a handful of
+ * glossy objects in the middle of a banded scene. It is the same defect the
+ * `cel/` bench had paid for in the sample application, where baked mode drew nothing because
+ * `tryBakeCelHull` silently refuses every non-Standard material: the same rule,
+ * from the other side.
  *
- * E non basta prendere la strada Standard: la fabbrica del chiamante è tarata
- * per il modello di illuminazione PRECEDENTE, quindi porta uno specular e un
- * FLOOR EMISSIVO. Sotto cel il floor è una lift additiva uniforme sommata DOPO
- * la quantizzazione: riporta tutte le bande verso l'alto finché si schiacciano
- * l'una sull'altra, cioè lava via esattamente il chiaroscuro che il cel esiste
- * per dare. Si azzerano entrambi, come fa già `createLitVertexColorMat` — dove
- * serve un bagliore vero, sotto cel la strada è il lift emissivo del plugin, non
- * il pavimento del materiale.
+ * And taking the Standard road is not enough: the caller's factory is tuned for
+ * the PREVIOUS lighting model, so it brings a specular and an EMISSIVE FLOOR.
+ * Under cel the floor is a uniform additive lift summed AFTER quantization: it
+ * pushes all the bands upwards until they squash onto one another, i.e. it washes
+ * away exactly the shading cel exists to give. Both are zeroed out, as
+ * `createLitVertexColorMat` already does — where a real glow is needed, the road
+ * under cel is the plugin's emissive lift, not the material's floor.
  */
 export function acquireTieredMaterial(
     scene: Scene,
@@ -477,33 +476,33 @@ export function acquireTieredMaterial(
 }
 
 /**
- * Le texture che il materiale POSSIEDE, per convenzione di nome.
+ * The textures the material OWNS, by naming convention.
  *
- * `Material.dispose()` non tocca le texture (il default di Babylon è
- * `forceDisposeTextures=false`), ed è il default GIUSTO: una texture condivisa
- * — il matcap del decor, la bump del bush3d, la ramp cel — appartiene alla sua
- * cache, non all'ultimo materiale che la lascia, e distruggerla di lì
- * annerirebbe tutti gli altri. Ma le bump procedurali per-materiale
- * (`${m.name}-reef-bump`, `${m.name}-skin-bump`: v. `materials.types.ts`) non
- * hanno nessun'altra casa, quindi senza questa riga restano in scena per
- * sempre. Misurato alternando due mondi senza mai chiudere l'app: texture di
- * scena 18 → 56 in quattro giri, una copia nuova di ogni bump a ogni rientro
- * nel mondo, e l'heap dietro (fino a ~900 MB) — su telefono è il punto in cui
- * il sistema uccide la WebView.
+ * `Material.dispose()` does not touch textures (Babylon's default is
+ * `forceDisposeTextures=false`), and that is the RIGHT default: a shared texture
+ * — the decor matcap, the bush3d bump, the cel ramp — belongs to its cache, not to
+ * the last material that lets go of it, and destroying it from there would blacken
+ * all the others. But the per-material procedural bumps
+ * (`${m.name}-reef-bump`, `${m.name}-skin-bump`: see `materials.types.ts`) have no
+ * other home, so without this line they stay in the scene forever. Measured by
+ * alternating two worlds without ever closing the app: scene textures 18 → 56 over
+ * four rounds, a fresh copy of every bump on each re-entry into the world, and the
+ * heap behind it (up to ~900 MB) — on a phone that is the point at which the
+ * system kills the WebView.
  *
- * Il discrimine è il PREFISSO col nome del materiale, ed è quello onesto: è la
- * convenzione con cui chi la crea dichiara che quella texture è sua e di
- * nessun altro. Le condivise non lo portano mai — non potrebbero, non
- * appartengono a un materiale solo — quindi non c'è modo che questa passata le
- * prenda per sbaglio.
+ * The discriminator is the PREFIX carrying the material's name, and it is the
+ * honest one: it is the convention by which whoever creates the texture declares
+ * that it is theirs and nobody else's. The shared ones never carry it — they could
+ * not, they do not belong to a single material — so there is no way this pass
+ * picks them up by mistake.
  */
 function ownedTextures(mat: StandardMaterial | PBRMaterial): BaseTexture[] {
     const prefix = `${mat.name}-`;
     return mat.getActiveTextures().filter((t) => t.name?.startsWith(prefix));
 }
 
-/** Dispose del materiale + delle sue texture proprie. La lista si prende PRIMA
- *  del dispose: dopo, il materiale non le espone più. */
+/** Disposes the material + the textures it owns. The list is taken BEFORE the
+ *  dispose: afterwards, the material no longer exposes them. */
 function disposeWithOwnedTextures(mat: StandardMaterial | PBRMaterial): void {
     const owned = ownedTextures(mat);
     mat.unfreeze();

@@ -1,21 +1,21 @@
-// Shader-cache persistence (R1 fase 1, 2026-07-02).
+// Shader-cache persistence (2026-07-02).
 //
-// Problema: gli Effect Babylon sono ref-counted — quando l'ultimo material che
-// usa una variante viene disposto (materiali level-scoped: skin del player,
-// ostacoli, decor per-livello), il PROGRAMMA GPU compilato viene rimosso da
-// `engine._compiledEffects`. Alla transizione di livello successiva le stesse
-// varianti vengono ricompilate da zero: misurato sul target di riferimento
-// ~35 effect ricompilati per transizione (long task 0.6-1.1s su GPU flagship,
-// ~2-4s su mid) — la voce dominante dei freeze di transizione.
+// Problem: Babylon Effects are ref-counted — when the last material using a
+// variant is disposed (level-scoped materials: player skin, obstacles, per-level
+// decor), the compiled GPU PROGRAM is removed from `engine._compiledEffects`. At
+// the next level transition the same variants are recompiled from scratch:
+// measured on the reference target, ~35 effects recompiled per transition (long
+// task 0.6-1.1s on a flagship GPU, ~2-4s on mid) — the dominant contributor to
+// transition freezes.
 //
-// Fix: `Effect.PersistentMode` (knob ufficiale Babylon) rende `dispose()`
-// non-force un no-op → i programmi compilati restano residenti per la vita
-// dell'engine. Il costo è memoria GPU/JS limitata al numero di varianti uniche
-// (~100 per questo profilo di gioco, pochi MB); il teardown reale resta
-// garantito da `engine.dispose()`/`releaseEffects()` (path force).
+// Fix: `Effect.PersistentMode` (Babylon's official knob) makes a non-force
+// `dispose()` a no-op → the compiled programs stay resident for the engine's
+// lifetime. The cost is GPU/JS memory bounded by the number of unique variants
+// (~100 for this game profile, a few MB); real teardown is still guaranteed by
+// `engine.dispose()`/`releaseEffects()` (the force path).
 import { Effect } from '@babylonjs/core';
 
-/** Attiva la persistenza della cache shader (idempotente). */
+/** Enables shader-cache persistence (idempotent). */
 export function installPersistentShaderCache(): void {
     Effect.PersistentMode = true;
 }

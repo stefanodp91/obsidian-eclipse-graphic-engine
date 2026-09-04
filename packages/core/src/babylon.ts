@@ -171,6 +171,6 @@ export type {
 export { createGraphicEngine } from './api';
 export type { CreateGraphicEngineOptions, QualityPort, TierPort, PhasePort, FramePort, AssetsPort, MaterialsPort, PoolsPort, PhaseSink } from './api';
 
-// Prototipo cel-shading (branch proto/cel-shading). Sperimentale: nessun
-// consumatore di produzione, si toglie in blocco se il look non passa.
+// Cel-shading prototype (branch proto/cel-shading). Experimental: no production
+// consumer, it comes out wholesale if the look does not pass.
 export * from './adapters/babylon/cel';

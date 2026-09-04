@@ -2,7 +2,7 @@
 // SDK) imports, so the package's standalone typecheck never depends on the
 // backend's types. Today the only production impl is Firebase
 // (see ./firebase.ts); a future HMS/AGConnect impl implements these same three
-// contracts here and the game's managers stay untouched.
+// contracts here and a consumer's managers stay untouched.
 //
 // Event/log methods are fire-and-forget: observability must never destabilize
 // gameplay. The consent kill-switch is deliberately different: callers await

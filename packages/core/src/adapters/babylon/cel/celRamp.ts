@@ -1,34 +1,34 @@
-// Ramp texture procedurale: la lookup 1-D che trasforma NdotL in una BANDA.
+// Procedural ramp texture: the 1-D lookup that turns NdotL into a BAND.
 //
-// Tutta l'art-direction dello shading cel vive qui dentro. Il numero di gradini,
-// la loro durezza e — soprattutto — la TINTA dell'ombra sono i tre assi che
-// separano un cel-shading credibile da uno di plastica. Averli in una texture
-// invece che in costanti nello shader significa poterli tarare a runtime senza
-// una ricompilazione: è il presupposto del lab a colonne.
+// All of cel shading's art direction lives in here. The number of steps, their
+// hardness and — above all — the shadow's TINT are the three axes that separate a
+// believable cel-shading from a plastic one. Having them in a texture instead of
+// in shader constants means being able to tune them at runtime without a
+// recompilation: that is the precondition for the column-based lab.
 //
-// Stesso pattern di `buildDecorMatcap` in MaterialLibrary.ts: DynamicTexture
-// disegnata su canvas 2D, cache per-Scene, una sola istanza per combinazione di
-// parametri.
+// Same pattern as `buildDecorMatcap` in MaterialLibrary.ts: a DynamicTexture
+// drawn on a 2D canvas, a per-Scene cache, a single instance per parameter
+// combination.
 
 import type { Scene } from '@babylonjs/core';
 import { Color3, DynamicTexture, Texture } from '@babylonjs/core';
 
 export interface CelRampSpec {
-    /** Numero di gradini. 0 = rampa continua (il riferimento "non-cel" del lab). */
+    /** Number of steps. 0 = continuous ramp (the "non-cel" reference). */
     bands: number;
-    /** Colore moltiplicativo nel gradino più in ombra. */
+    /** Multiplicative color in the deepest shadow step. */
     shadow: Color3;
-    /** Colore moltiplicativo nel gradino più in luce. Tipicamente bianco. */
+    /** Multiplicative color in the brightest step. Typically white. */
     light: Color3;
-    /** Ampiezza della transizione fra gradini, in frazione di banda (0..1).
-     *  0 = stacco netto. Sopra ~0.35 le bande si fondono e il look si perde. */
+    /** Width of the transition between steps, as a fraction of a band (0..1).
+     *  0 = hard cut. Above ~0.35 the bands merge and the look is lost. */
     softness: number;
 }
 
 export const DEFAULT_CEL_RAMP: CelRampSpec = {
     bands: 3,
-    // Ombra fredda e leggermente satura, non grigia: è la scelta che fa leggere
-    // il volume come "dipinto" invece che come diffuse abbassato.
+    // A cold, slightly saturated shadow, not a gray one: it is the choice that
+    // makes the volume read as "painted" rather than as a lowered diffuse.
     shadow: new Color3(0.34, 0.36, 0.48),
     light: Color3.White(),
     softness: 0.06,
@@ -48,7 +48,7 @@ function css(col: Color3): string {
     return `rgb(${to255(col.r)},${to255(col.g)},${to255(col.b)})`;
 }
 
-/** Valore quantizzato del gradino i (0..bands-1) sull'asse 0..1. */
+/** Quantized value of step i (0..bands-1) on the 0..1 axis. */
 function stepValue(i: number, bands: number): number {
     return bands <= 1 ? 1 : i / (bands - 1);
 }
@@ -63,9 +63,9 @@ function buildRamp(scene: Scene, spec: CelRampSpec): DynamicTexture {
     const ctx = dt.getContext() as unknown as CanvasRenderingContext2D;
 
     if (spec.bands <= 1) {
-        // Rampa continua: il termine di paragone "senza cel" del lab. Serve
-        // averlo nella STESSA pipeline (stesso materiale, stesso fog, stesso
-        // grade) o il confronto misura le differenze di pipeline, non di look.
+        // Continuous ramp: the "without cel" reference. It has to be in the
+        // SAME pipeline (same material, same fog, same grade) or the comparison
+        // measures pipeline differences rather than look differences.
         const grad = ctx.createLinearGradient(0, 0, RAMP_WIDTH, 0);
         grad.addColorStop(0, css(spec.shadow));
         grad.addColorStop(1, css(spec.light));
@@ -83,10 +83,10 @@ function buildRamp(scene: Scene, spec: CelRampSpec): DynamicTexture {
                 ctx.fillRect(x0, 0, bandPx + 1, 1);
                 continue;
             }
-            // Transizione morbida sul BORDO SINISTRO del gradino: parte dal
-            // colore del gradino precedente e arriva al proprio. Un gradiente
-            // simmetrico a cavallo del confine sposterebbe il centro di ogni
-            // banda, e con 2-3 bande lo spostamento si vede.
+            // Soft transition on the step's LEFT EDGE: it starts from the
+            // previous step's color and arrives at its own. A symmetric gradient
+            // straddling the boundary would shift the center of every band, and
+            // with 2-3 bands that shift is visible.
             const prev = Color3.Lerp(spec.shadow, spec.light, stepValue(i - 1, spec.bands));
             const grad = ctx.createLinearGradient(x0 - softPx, 0, x0 + softPx, 0);
             grad.addColorStop(0, css(prev));
@@ -101,35 +101,35 @@ function buildRamp(scene: Scene, spec: CelRampSpec): DynamicTexture {
     dt.update(false);
     dt.wrapU = Texture.CLAMP_ADDRESSMODE;
     dt.wrapV = Texture.CLAMP_ADDRESSMODE;
-    // La ramp codifica un MOLTIPLICATORE di luce, non un colore da schermo:
-    // va campionata così com'è stata scritta, senza decodifica gamma. Stessa
-    // ragione per cui il matcap del decor è gammaSpace=false.
+    // The ramp encodes a light MULTIPLIER, not a screen color: it has to be
+    // sampled exactly as it was written, with no gamma decoding. Same reason the
+    // decor matcap is gammaSpace=false.
     dt.gammaSpace = false;
     dt.anisotropicFilteringLevel = 1;
     return dt;
 }
 
-// ── Corsia veloce per il percorso caldo ──────────────────────────────────────
+// ── Fast lane for the hot path ───────────────────────────────────────────────
 //
-// `getCelRamp` viene chiamata dal `bindForSubMesh` del plugin cel, cioè UNA VOLTA
-// PER SUBMESH PER FRAME. Costruire la chiave lì significa sei `toFixed(3)` e
-// altrettante concatenazioni a ogni draw call: con ~150 draw call a 60 fps sono
-// decine di migliaia di stringhe temporanee al secondo, buttate addosso al GC su
-// un frame che su A25 è già main-thread-bound. Il costo non stava nella cache —
-// che è O(1) e centrava sempre — ma nel CALCOLARE la chiave per interrogarla.
+// `getCelRamp` is called from the cel plugin's `bindForSubMesh`, i.e. ONCE PER
+// SUBMESH PER FRAME. Building the key there means six `toFixed(3)` calls and as
+// many concatenations on every draw call: with ~150 draw calls at 60 fps that is
+// tens of thousands of temporary strings per second thrown at the GC, on a frame
+// that on mid-tier Android is already main-thread-bound. The cost was not in the cache — which
+// is O(1) and always hit — but in COMPUTING the key to query it.
 //
-// Lo spec arriva da `configureCelPlugin`, che lo SOSTITUISCE invece di mutarlo:
-// l'identità dell'oggetto è quindi un test valido, e costa zero allocazioni.
-// Fallisce solo verso il lento (una tarature nuova ricalcola la chiave una volta),
-// mai verso lo sbagliato.
+// The spec comes from `configureCelPlugin`, which REPLACES it instead of mutating
+// it: object identity is therefore a valid test, and it costs zero allocations.
+// It only fails towards the slow path (a new tuning recomputes the key once),
+// never towards the wrong one.
 //
-// ⚠️ Corollario del contratto: chi muta uno spec SUL POSTO non vedrà la ramp
-// cambiare. La via supportata è passare un oggetto nuovo, come fa il gioco.
+// ⚠️ A corollary of the contract: whoever mutates a spec IN PLACE will not see
+// the ramp change. The supported way is to pass a new object, as consumers are expected to do.
 let lastRampScene: Scene | null = null;
 let lastRampSpec: CelRampSpec | null = null;
 let lastRampTex: DynamicTexture | null = null;
 
-/** Ramp condivisa per-Scene: una sola texture per combinazione di parametri. */
+/** Per-Scene shared ramp: a single texture per parameter combination. */
 export function getCelRamp(scene: Scene, spec: CelRampSpec = DEFAULT_CEL_RAMP): DynamicTexture {
     if (lastRampTex && lastRampScene === scene && lastRampSpec === spec) return lastRampTex;
 
@@ -148,9 +148,9 @@ export function getCelRamp(scene: Scene, spec: CelRampSpec = DEFAULT_CEL_RAMP): 
 }
 
 export function disposeCelRamps(scene: Scene): void {
-    // La corsia veloce va invalidata PRIMA di distruggere le texture, o il
-    // prossimo bind restituirebbe una texture disposta — che non dà un errore,
-    // dà nero.
+    // The fast lane has to be invalidated BEFORE the textures are destroyed, or
+    // the next bind would return a disposed texture — which does not raise an
+    // error, it gives black.
     if (lastRampScene === scene) {
         lastRampScene = null;
         lastRampSpec = null;

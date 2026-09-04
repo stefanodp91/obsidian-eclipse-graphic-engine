@@ -1,124 +1,126 @@
-// Contorno — candidato A: edge detection in post-process.
+// Outline — candidate A: edge detection in post-process.
 //
-// Un solo pass fullscreen legge il G-buffer (profondità + normali) e disegna una
-// linea dove una delle due ha una discontinuità. Non tocca la geometria: vale
-// per le mesh normali, per le istanze e per le mesh unite allo stesso modo, e
-// non aggiunge una singola draw call.
+// A single fullscreen pass reads the G-buffer (depth + normals) and draws a line
+// wherever either of the two has a discontinuity. It does not touch the
+// geometry: it works for regular meshes, for instances and for merged meshes
+// alike, and it does not add a single draw call.
 //
-// Il tratto risulta di spessore COSTANTE in pixel, indipendente dalla distanza.
-// È una scelta estetica, non un limite: gli oggetti lontani mantengono un
-// contorno leggibile invece di vederlo assottigliare fino a sparire. Il
-// candidato B (guscio invertito) fa l'opposto. Servono affiancati per decidere.
+// The stroke comes out at a CONSTANT thickness in pixels, independent of
+// distance. That is an aesthetic choice, not a limitation: distant objects keep a
+// readable outline instead of watching it thin out until it disappears. Candidate
+// B (inverted hull) does the opposite. They are needed side by side to decide.
 //
-// Cosa questo candidato NON può fare: disegnare una linea dove non c'è
-// discontinuità di profondità o normale — cioè i dettagli interni disegnati su
-// una superficie continua. Quelli restano compito del rim d'inchiostro
-// (celInkRim) o della texture.
+// What this candidate CANNOT do: draw a line where there is no depth or normal
+// discontinuity — that is, the internal details drawn on a continuous surface.
+// Those remain the job of the ink rim (celInkRim) or of the texture.
 
 import type { AbstractMesh, Camera, Nullable, Scene, Texture } from '@babylonjs/core';
 import {
     Color3, Effect, GeometryBufferRenderer, Mesh, PostProcess, Vector2,
 } from '@babylonjs/core';
-// ⚠️ IMPORT PER SIDE-EFFECT, e senza di lui il guscio non esiste.
+// ⚠️ SIDE-EFFECT IMPORT, and without it the hull does not exist.
 //
-// `renderOutline` / `outlineWidth` / `outlineColor` NON sono proprietà native di
-// `AbstractMesh`: gliele attacca questo modulo, insieme al renderer che le
-// disegna. Il gioco importa Babylon à la carte, quindi senza questa riga
-// `mesh.renderOutline` è `undefined` — non `false` — e scriverci sopra non fa
-// nulla e non dà errore.
+// `renderOutline` / `outlineWidth` / `outlineColor` are NOT native properties of
+// `AbstractMesh`: this module attaches them, together with the renderer that
+// draws them. The game imports Babylon à la carte, so without this line
+// `mesh.renderOutline` is `undefined` — not `false` — and writing to it does
+// nothing and raises no error.
 //
-// Costa un'ora scoprirlo dal difetto: il contorno a guscio sembrava GRATIS
-// (54 fps contro 33 del post-process) e invece non veniva disegnato affatto.
-// Il segnale che ha smascherato il finto guadagno sono state le draw call —
-// identiche a quelle senza contorno, mentre un guscio ne aggiunge una per
-// oggetto. Quando un'ottimizzazione sembra gratis, si conta.
+// It costs an hour to find that out from the symptom: the hull outline looked
+// FREE (54 fps against the post-process's 33) and in fact was not being drawn at
+// all. The signal that exposed the fake win was the draw calls — identical to the
+// no-outline case, whereas a hull adds one per object. When an optimization looks
+// free, count.
 import '@babylonjs/core/Rendering/outlineRenderer';
 import { bakeCelHullIntoMesh, isCelHullBaked } from './celHull';
 
 export interface CelOutlineOptions {
     color: Color3;
-    /** Raggio del kernel in pixel. Sopra ~2 il tratto si sdoppia sui bordi
-     *  ravvicinati (il kernel campiona oltre la silhouette successiva). */
+    /** Kernel radius in pixels. Above ~2 the stroke doubles up on closely spaced
+     *  edges (the kernel samples past the next silhouette). */
     thickness: number;
-    /** Sensibilità alla discontinuità di PROFONDITÀ, come frazione della
-     *  profondità del pixel. Scalata così perché la precisione del buffer cala
-     *  con la distanza e una soglia assoluta produrrebbe rumore in fondo. */
+    /** Sensitivity to DEPTH discontinuity, as a fraction of the pixel's depth.
+     *  Scaled this way because buffer precision drops with distance and an
+     *  absolute threshold would produce noise in the far field. */
     depthThreshold: number;
-    /** Sensibilità alla discontinuità di NORMALE — è il termine che trova gli
-     *  spigoli interni (dove la profondità è continua ma la superficie piega). */
+    /** Sensitivity to NORMAL discontinuity — this is the term that finds internal
+     *  creases (where depth is continuous but the surface bends). */
     normalThreshold: number;
-    /** Distanza IN METRI oltre la quale il contorno svanisce; la dissolvenza
-     *  parte al 60% di questo valore. 0 = mai.
+    /** Distance IN METERS beyond which the outline fades out; the fade starts at
+     *  60% of this value. 0 = never.
      *
-     *  L'unità è metri e non una profondità normalizzata perché il G-buffer di
-     *  Babylon scrive la z in spazio VISTA, cioè già in unità di mondo. Con la
-     *  lettura sbagliata (0..1) un valore plausibile come 0.16 spegne il
-     *  contorno sull'intera scena, e sembra che la dissolvenza non funzioni. */
+     *  The unit is meters and not a normalized depth because Babylon's G-buffer
+     *  writes z in VIEW space, i.e. already in world units. With the wrong reading
+     *  (0..1) a plausible-looking value such as 0.16 switches the outline off
+     *  across the whole scene, and it looks like the fade is broken. */
     fadeDistance: number;
-    /** Vista diagnostica dei buffer sorgente. Un edge-detect che non disegna
-     *  ha sempre almeno tre cause possibili (buffer vuoto, codifica diversa da
-     *  quella attesa, soglia sbagliata) e a occhio sono indistinguibili: questa
-     *  è la leva che le separa in un colpo invece che per tentativi. */
+    /** Diagnostic view of the source buffers. An edge-detect that draws nothing
+     *  always has at least three possible causes (empty buffer, an encoding other
+     *  than the expected one, wrong threshold) and by eye they are
+     *  indistinguishable: this is the lever that separates them in one shot
+     *  instead of by trial and error. */
     debug: CelOutlineDebug;
-    /** Se vero, il G-buffer disegna SOLO le mesh dichiarate protagoniste
-     *  (`markCelOutlineEssential`) invece dell'intera scena.
+    /** If true, the G-buffer draws ONLY the meshes declared essential
+     *  (`markCelOutlineEssential`) instead of the whole scene.
      *
-     *  Toglie draw call — misurato su A25 mid, 157 → 95 — ma ne compra pochi
-     *  fps: 33.2 → 36.5. Il grosso del costo del contorno NON è la submission
-     *  della seconda passata; v. la nota su `gBufferRatio`, che è la leva vera.
+     *  It removes draw calls — measured on the mid-tier reference device
+     *  (Galaxy A25, Mali-G68), 157 → 95 — but buys few fps: 33.2 → 36.5. The
+     *  bulk of the outline's cost is NOT the submission of the second pass; see
+     *  the note on `gBufferRatio`, which is the real lever.
      *
-     *  Resta utile in combinazione, e per una ragione che non è la velocità: la
-     *  lista ridotta è anche una scelta di DISEGNO — il tratto sulle
-     *  protagoniste e non sul fondale è una gerarchia, non solo un risparmio.
+     *  It stays useful in combination, and for a reason that is not speed: the
+     *  reduced list is also a DRAWING choice — the stroke on the heroes and not on
+     *  the backdrop is a hierarchy, not just a saving.
      *
-     *  Il prezzo è visivo e va detto: lo scenario perde il tratto sulle proprie
-     *  silhouette. Gli resta il rim d'inchiostro che il materiale disegna da sé
-     *  sulle curve, che è un meccanismo diverso e complementare. */
+     *  The price is visual and has to be stated: the scenery loses the stroke on
+     *  its own silhouettes. What it keeps is the ink rim the material draws by
+     *  itself on curved surfaces, which is a different and complementary
+     *  mechanism. */
     essentialOnly: boolean;
-    /** Frazione della risoluzione dello schermo a cui il G-buffer viene
-     *  disegnato. 1 = piena.
+    /** Fraction of the screen resolution at which the G-buffer is drawn. 1 =
+     *  full.
      *
-     *  ⚠️ Sembra la leva ovvia e NON lo è: misurato su A25 mid, portarlo a 0.5
-     *  compra 1.2 fps su un divario di 20. Scriverlo qui perché è esattamente
-     *  il genere di ottimizzazione che si rifà due volte — la seconda con la
-     *  stessa convinzione della prima. Il costo sta nel pass fullscreen
-     *  (v. `postProcessRatio`), non nella sorgente che legge.
+     *  ⚠️ It looks like the obvious lever and it is NOT: on the mid-tier
+     *  reference device, taking it to 0.5 buys 1.2 fps out of a 20 fps gap. Written down here
+     *  because it is exactly the kind of optimization that gets attempted twice —
+     *  the second time with the same conviction as the first. The cost lives in
+     *  the fullscreen pass (see `postProcessRatio`), not in the source it reads.
      *
-     *  Il prezzo è la NITIDEZZA del tratto: il contorno esce dall'edge-detect
-     *  su questi buffer, quindi a mezza risoluzione la linea si ingrossa e si
-     *  scalinetta sulle diagonali. Va guardato, non dedotto. */
+     *  The price is the SHARPNESS of the stroke: the outline comes out of the
+     *  edge-detect over these buffers, so at half resolution the line thickens and
+     *  gets stair-stepped on diagonals. It has to be looked at, not deduced. */
     gBufferRatio: number;
-    /** Frazione della risoluzione a cui gira il PASS FULLSCREEN dell'edge-detect.
+    /** Fraction of the resolution at which the edge-detect FULLSCREEN PASS runs.
      *
-     *  ⚠️ Dopo aver escluso le altre due, è qui che sta il costo. Misurato su
-     *  A25 mid, quattro varianti appaiate a parità di vertici:
+     *  ⚠️ Once the other two are ruled out, this is where the cost is. Measured on
+     *  that same device, four variants paired at equal vertex counts:
      *
-     *    contorno pieno                    32.8 fps · DC 158
-     *    lista ridotta (−62 draw call)     36.5 fps        → +3.3
-     *    G-buffer a metà risoluzione       34.0 fps        → +1.2
-     *    contorno spento                   53.2 fps · DC  82  → +20
+     *    full outline                      32.8 fps · DC 158
+     *    reduced list (−62 draw calls)     36.5 fps        → +3.3
+     *    G-buffer at half resolution       34.0 fps        → +1.2
+     *    outline off                       53.2 fps · DC  82  → +20
      *
-     *  Le due leve «ovvie» insieme comprano 4 fps su 20. Il resto è questo
-     *  pass: gira a risoluzione piena e fa NOVE letture di texture per pixel
-     *  (cinque di profondità, quattro di normali) su ~1.8 milioni di pixel, cioè
-     *  ~16 milioni di campionamenti per frame su una Mali-G68.
+     *  The two «obvious» levers together buy 4 fps out of 20. The rest is this
+     *  pass: it runs at full resolution and does NINE texture reads per pixel
+     *  (five depth, four normals) over ~1.8 million pixels, i.e. ~16 million
+     *  samples per frame on a Mali-G68.
      *
-     *  Il prezzo è la nitidezza del tratto, ed è più visibile che sul
-     *  `gBufferRatio`: qui si abbassa la risoluzione del DISEGNO, non quella
-     *  della sorgente. Va guardato a schermo prima di spedirlo. */
+     *  The price is stroke sharpness, and it is more visible than with
+     *  `gBufferRatio`: here it is the resolution of the DRAWING that drops, not
+     *  that of the source. Look at it on screen before shipping it. */
     postProcessRatio: number;
-    /** Sorgente a SOLA PROFONDITÀ invece del G-buffer depth+normali.
+    /** DEPTH-ONLY source instead of the depth+normals G-buffer.
      *
-     *  Il `GeometryBufferRenderer` è un multi-render-target: scrive due texture
-     *  a schermo pieno per frame. Il `DepthRenderer` ne scrive una. Se il costo
-     *  che le altre leve non spiegano è l'MRT in sé — allocazione, clear e
-     *  writeback di due bersagli — questa lo dimezza.
+     *  The `GeometryBufferRenderer` is a multi-render-target: it writes two
+     *  full-screen textures per frame. The `DepthRenderer` writes one. If the cost
+     *  the other levers do not explain is the MRT itself — allocation, clear and
+     *  writeback of two targets — this halves it.
      *
-     *  Il prezzo è il TERMINE NORMALI, cioè gli spigoli interni: restano le
-     *  silhouette e le discontinuità di profondità, si perdono le pieghe su
-     *  superficie continua. Sotto cel non è poco — ma il rim d'inchiostro del
-     *  materiale copre in parte lo stesso mestiere, e su una geometria fatta di
-     *  facce piatte molte pieghe sono anche salti di profondità. */
+     *  The price is the NORMALS TERM, i.e. the internal creases: silhouettes and
+     *  depth discontinuities remain, folds on a continuous surface are lost. Under
+     *  cel that is not a small thing — but the material's ink rim covers part of
+     *  the same job, and on geometry made of flat faces many folds are depth jumps
+     *  as well. */
     depthOnly: boolean;
 }
 
@@ -136,9 +138,9 @@ export const DEFAULT_CEL_OUTLINE: CelOutlineOptions = {
     gBufferRatio: 1,
     postProcessRatio: 1,
     depthOnly: false,
-    // Di serie il contorno vale per TUTTA la scena: è il comportamento con cui
-    // il look è stato giudicato, e restringerlo è una scelta che il chiamante
-    // deve dichiarare.
+    // By default the outline covers the WHOLE scene: that is the behavior the
+    // look was judged against, and narrowing it is a choice the caller has to
+    // declare.
     essentialOnly: false,
 };
 
@@ -161,19 +163,19 @@ uniform float normalThreshold;
 uniform float fadeDistance;
 uniform float debugView;
 
-// VINCOLO WEBGPU — tutti i campionamenti stanno in cima, PRIMA di qualsiasi
-// ramo. WGSL pretende che textureSample sia chiamata in control flow uniforme
-// (gli servono le derivate del quad); un return anticipato sul cielo, o un
-// campionamento dentro un if, fanno fallire la compilazione con «must only be
-// called from uniform control flow». In WebGL2 lo stesso codice compilerebbe.
-// Quindi: si campiona sempre tutto, e le condizioni diventano moltiplicazioni.
+// WEBGPU CONSTRAINT — every sample is taken at the top, BEFORE any branch. WGSL
+// requires textureSample to be called in uniform control flow (it needs the
+// quad's derivatives); an early return on the sky, or a sample inside an if, make
+// compilation fail with «must only be called from uniform control flow». In
+// WebGL2 the same code would compile. So: everything is always sampled, and the
+// conditions become multiplications.
 void main(void) {
     vec3 scene = texture2D(textureSampler, vUV).rgb;
 
     vec2 o = texelSize * thickness;
-    // Croce di Roberts sulle diagonali: quattro campioni invece degli otto di
-    // Sobel. Su un contorno binario la differenza non si vede, e questo pass
-    // gira a piena risoluzione.
+    // Roberts cross on the diagonals: four samples instead of Sobel's eight. On
+    // a binary outline the difference is invisible, and this pass runs at full
+    // resolution.
     vec2 uvA = vUV + vec2(-o.x, -o.y);
     vec2 uvB = vUV + vec2( o.x,  o.y);
     vec2 uvC = vUV + vec2(-o.x,  o.y);
@@ -190,22 +192,22 @@ void main(void) {
     vec3 nC = texture2D(normalSampler, uvC).rgb;
     vec3 nD = texture2D(normalSampler, uvD).rgb;
 
-    // Test sulla CURVATURA della profondità, non sulla sua pendenza.
+    // A test on the CURVATURE of depth, not on its slope.
     //
-    // Confrontare due campioni opposti (|dA - dB|) sembra la cosa ovvia e non
-    // funziona: su una superficie vista di taglio — un terreno che corre verso
-    // l'orizzonte — la profondità cambia moltissimo da un pixel al successivo
-    // pur non essendoci alcun bordo, e l'intera lontananza si tinge di nero.
+    // Comparing two opposite samples (|dA - dB|) looks like the obvious thing and
+    // does not work: on a surface seen edge-on — terrain running towards the
+    // horizon — depth changes enormously from one pixel to the next even though
+    // there is no edge at all, and the whole distance turns black.
     //
-    // La media dei due opposti confrontata col centro annulla invece qualunque
-    // variazione LINEARE: un piano, per quanto radente, dà risposta zero.
-    // Restano solo le discontinuità vere — sagome e pieghe.
+    // The mean of the two opposites compared against the center, by contrast,
+    // cancels any LINEAR variation: a plane, however grazing, gives zero response.
+    // Only the real discontinuities are left — silhouettes and folds.
     float depthEdge = max(
         abs((dA + dB) * 0.5 - dC),
         abs((dCc + dD) * 0.5 - dC)
     );
-    // Soglia proporzionale alla profondità: la precisione del buffer cala con la
-    // distanza, e una soglia fissa farebbe comparire rumore in fondo alla scena.
+    // Threshold proportional to depth: buffer precision drops with distance, and
+    // a fixed threshold would make noise appear in the far field.
     float depthHit = step(depthThreshold * dC, depthEdge);
 
     float normalEdge = max(1.0 - dot(nA, nB), 1.0 - dot(nC, nD));
@@ -213,22 +215,23 @@ void main(void) {
 
     float edge = max(depthHit, normalHit);
 
-    // Cielo/sfondo: il G-buffer resta a 0 dove non è stato scritto nulla. Senza
-    // questo azzeramento l'orizzonte diventerebbe una linea nera continua.
+    // Sky/background: the G-buffer stays at 0 where nothing has been written.
+    // Without this zeroing the horizon would become a continuous black line.
     edge *= step(1e-6, dC);
 
-    // fadeDistance == 0 significa "mai": lo smoothstep va neutralizzato senza
-    // un ramo, o si ricade nel problema di control flow qui sopra.
+    // fadeDistance == 0 means "never": the smoothstep has to be neutralized
+    // without a branch, or we fall back into the control-flow problem above.
     float fadeOn = step(1e-6, fadeDistance);
     float fade = 1.0 - smoothstep(fadeDistance * 0.6, max(fadeDistance, 1e-6), dC);
     edge *= mix(1.0, fade, fadeOn);
 
     vec3 result = mix(scene, outlineColor, edge);
 
-    // Viste diagnostiche. La profondità è amplificata perché il buffer, se è
-    // normalizzato sul far plane, vive tutto nei primi centesimi dell'intervallo
-    // e senza scala legge come nero pieno — che è indistinguibile da un buffer
-    // non scritto, cioè proprio l'ambiguità che questa vista deve risolvere.
+    // Diagnostic views. Depth is amplified because the buffer, if it is
+    // normalized on the far plane, lives entirely in the first hundredths of the
+    // range and without scaling reads as solid black — which is indistinguishable
+    // from an unwritten buffer, i.e. exactly the ambiguity this view has to
+    // resolve.
     if (debugView > 2.5)      result = vec3(edge);
     else if (debugView > 1.5) result = nA * 0.5 + 0.5;
     else if (debugView > 0.5) result = vec3(fract(dC * 10.0), dC, dC * 100.0);
@@ -239,81 +242,81 @@ void main(void) {
 
 Effect.ShadersStore[`${SHADER_NAME}PixelShader`] = OUTLINE_FRAGMENT;
 
-/** Mesh che NON devono comparire nel G-buffer del contorno.
+/** Meshes that must NOT appear in the outline's G-buffer.
  *
- *  Serve per gli elementi la cui SAGOMA non corrisponde a quello che si vede:
- *  billboard, aloni, piani di riflesso. Sono l'eccezione, non la regola — il
- *  contorno esiste per disegnare le forme, e toglierlo a una forma vera la
- *  rende invisibile invece che discreta. */
+ *  Useful for elements whose SILHOUETTE does not match what is seen: billboards,
+ *  halos, reflection planes. They are the exception, not the rule — the outline
+ *  exists to draw shapes, and taking it away from a real shape makes it invisible
+ *  rather than discreet. */
 const outlineExcluded = new WeakSet<object>();
 
-/** Tiene una mesh fuori dal contorno a inchiostro. */
+/** Keeps a mesh out of the ink outline. */
 export function excludeFromCelOutline(mesh: object): void {
     outlineExcluded.add(mesh);
 }
 
-/** Le mesh PROTAGONISTE: quelle che il contorno disegna anche quando il
- *  G-buffer smette di disegnare tutto il resto (v. `essentialOnly`).
+/** The ESSENTIAL meshes: the ones the outline draws even when the G-buffer stops
+ *  drawing everything else (see `essentialOnly`).
  *
- *  ⚠️ Marcatura in POSITIVO e a carico del gioco, non un'euristica del motore.
- *  Il motore è agnostico di marca e non sa che cos'è un ostacolo: se provasse a
- *  indovinare — per taglia, per distanza, per nome — sbaglierebbe in silenzio al
- *  primo modello nuovo, e il difetto sarebbe «a volte un oggetto non ha il
- *  contorno», che è la classe di bug più cara da inseguire. */
+ *  ⚠️ Marking is POSITIVE and the consumer's responsibility, not an engine heuristic.
+ *  The engine is brand-agnostic and does not know what an obstacle is: if it
+ *  tried to guess — by size, by distance, by name — it would fail silently on the
+ *  first new model, and the defect would be «sometimes an object has no outline»,
+ *  which is the most expensive class of bug to chase. */
 const outlineEssential = new WeakSet<object>();
 
-// ── Modo GUSCIO: il contorno nella mesh invece che nel fotogramma ───────────
+// ── HULL mode: the outline in the mesh instead of in the frame ─────────────
 //
-// Il post-process disegna il tratto leggendo profondità e normali di TUTTA la
-// scena, e su A25 quella seconda passata costa ~20 fps che non si riducono
-// (cinque leve provate, la migliore ne compra 3.7 — v. le note sui campi qui
-// sopra). Il guscio invertito fa lo stesso mestiere con un meccanismo opposto:
-// una copia della mesh gonfiata lungo le normali e con le facce anteriori
-// scartate, cioè UNA DRAW CALL IN PIÙ PER OGGETTO e nessuna passata di scena,
-// nessun render target, nessun multi-render-target.
+// The post-process draws the stroke by reading depth and normals of the WHOLE
+// scene, and on a mid-tier Android device that second pass costs ~20 fps that
+// will not come down (five levers tried, the best buys 3.7 — see the field
+// notes above). The inverted hull does the same job with the opposite
+// mechanism: a copy of the mesh inflated along the normals with front faces
+// culled, i.e. ONE EXTRA DRAW CALL PER OBJECT and no scene pass, no render
+// target, no multi-render-target.
 //
-// Qui si usa `renderOutline` di Babylon e non `celHull.ts` di proposito: è la
-// stessa tecnica, e per MISURARE il costo va benissimo. `celHull` esiste perché
-// tiene colore e spessore su un materiale condiviso invece che su ogni mesh —
-// che conta quando lo spessore è l'asse da tarare, non quando la domanda è
-// «quanto costa».
+// Babylon's `renderOutline` is used here rather than `celHull.ts` on purpose: it
+// is the same technique, and for MEASURING the cost it is perfectly adequate.
+// `celHull` exists because it keeps color and thickness on a shared material
+// instead of on every mesh — which matters when thickness is the axis being
+// tuned, not when the question is «how much does it cost».
 //
-// ⚠️ Il difetto noto è di FORMA, non di velocità: il guscio si strappa sugli
-// spigoli duri, dove le normali per faccia divergono e la copia gonfiata si
-// apre. La geometria cel è fatta di spigoli duri. Va guardato a schermo.
+// ⚠️ The known defect is one of SHAPE, not of speed: the hull tears on hard
+// edges, where per-face normals diverge and the inflated copy splits open. Cel
+// geometry is made of hard edges. It has to be looked at on screen.
 let hullMode = false;
 let hullWidth = 0.035;
 let hullColor: Color3 = new Color3(0.04, 0.03, 0.06);
-/** Sotto questa DIAGONALE (in metri) una mesh non riceve il guscio. 0 = tutte.
+/** Below this DIAGONAL (in meters) a mesh does not get the hull. 0 = all of them.
  *
- *  La taglia è il discrimine giusto per due ragioni insieme: le sagome grandi
- *  sono quelle che fanno la silhouette del fotogramma (perderle si vede,
- *  perdere un ciuffo no), e sono anche quelle su cui il guscio NON sgrana — lo
- *  strappo sugli spigoli è tanto più visibile quanto più il pezzo è piccolo e
- *  fitto. Le protagoniste (`outlineEssential`) passano SEMPRE, a qualunque
- *  taglia: una bolla da raccogliere è piccola ma senza tratto sparisce. */
+ *  Size is the right discriminator for two reasons at once: large shapes are the
+ *  ones that make the frame's silhouette (losing them shows, losing a tuft does
+ *  not), and they are also the ones on which the hull does NOT fall apart — the
+ *  tearing on edges is the more visible the smaller and denser the piece. The
+ *  heroes (`outlineEssential`) ALWAYS pass, at any size: a small pickup needs
+ *  its stroke or it disappears. */
 let hullMinDiagonal = 0;
 
-/** Sopra questo numero di ISTANZE THIN una mesh non riceve il guscio cotto.
- *  Il costo del cotto è il raddoppio dei vertici MOLTIPLICATO per le istanze:
- *  una specie istanziata in massa (×123, ×116 in una scena misurata) paga il guscio cento volte,
- *  per un tratto che su esemplari fitti e ripetuti legge molto meno di quanto
- *  costa. Le protagoniste passano comunque. Infinity = nessun tetto. */
+/** Above this number of THIN INSTANCES a mesh does not get the baked hull.
+ *  The cost of baking is the doubling of vertices MULTIPLIED by the instances: a
+ *  mass-instanced species (×123, ×116 in one measured scene) pays for the hull a
+ *  hundred times, for a stroke that on dense repeated specimens reads far less than it
+ *  costs. The heroes pass regardless. Infinity = no cap. */
 let hullMaxThinInstances = Number.POSITIVE_INFINITY;
 
-/** Applica (o toglie) il guscio a una mesh, se è una mesh che può averlo.
+/** Applies (or removes) the hull on a mesh, if it is a mesh that can have one.
  *
- *  ⚠️ Il test è `'renderOutline' in mesh` e NON `typeof … === 'boolean'`.
- *  Babylon definisce la proprietà su `Mesh.prototype` con un getter che torna
- *  `this._renderOutline`, e quel campo NASCE `undefined`: una mesh a cui nessuno
- *  ha ancora scritto il contorno risponde `undefined`, non `false`. La guardia
- *  sbagliata scartava ogni mesh in silenzio, e il risultato era un contorno che
- *  non si accendeva mai su nessuno mentre tutto sembrava a posto.
+ *  ⚠️ The test is `'renderOutline' in mesh` and NOT `typeof … === 'boolean'`.
+ *  Babylon defines the property on `Mesh.prototype` with a getter returning
+ *  `this._renderOutline`, and that field is BORN `undefined`: a mesh nobody has
+ *  written an outline to yet answers `undefined`, not `false`. The wrong guard
+ *  silently discarded every mesh, and the result was an outline that never
+ *  switched on for anyone while everything looked fine.
  *
- *  Sulle ISTANZE non si scrive: `renderOutline` sta su `Mesh`, non su
- *  `AbstractMesh`. Non serve — l'outline renderer di Babylon disegna il guscio
- *  del MASTER insieme al suo batch di istanze, quindi marcare il master le
- *  copre tutte. */
+ *  Nothing is written on the INSTANCES: `renderOutline` lives on `Mesh`, not on
+ *  `AbstractMesh`. It is not needed — Babylon's outline renderer draws the
+ *  MASTER's hull together with its instance batch, so marking the master covers
+ *  them all. */
 function applyHull(mesh: object, on: boolean): void {
     if (!('renderOutline' in mesh)) return;
     const m = mesh as { renderOutline?: boolean; outlineWidth?: number; outlineColor?: Color3 };
@@ -322,30 +325,29 @@ function applyHull(mesh: object, on: boolean): void {
     m.renderOutline = on;
 }
 
-/** Osservatore che veste le protagoniste che nascono DOPO l'accensione. */
+/** Observer that dresses the heroes born AFTER the switch-on. */
 let hullObserver: { remove(): void } | null = null;
 
-/** Il ripasso per-frame del modo COTTO (v. sotto). Va tenuto per poterlo
- *  rimuovere: la prima stesura lo aggiungeva e basta, e ogni rimontaggio della
- *  pipeline (cambio mondo, cambio qualità) ne accumulava uno in più — ognuno
- *  un giro su `scene.meshes` a ogni frame, su un mondo già CPU-bound. */
+/** The per-frame sweep of BAKED mode (see below). It has to be kept so it can be
+ *  removed: the first draft only ever added it, and every remount of the pipeline
+ *  (world change, quality change) accumulated one more — each one a pass over
+ *  `scene.meshes` every frame, on a world that is already CPU-bound. */
 let hullBakeSweep: { remove(): void } | null = null;
 
 /**
- * Accende il contorno a guscio sulle mesh protagoniste.
+ * Switches the hull outline on for the essential meshes.
  *
- * ⚠️ Vale sia per quelle già nate sia per quelle che nasceranno, e non è un
- * lusso: la prima stesura si limitava ad applicarlo al momento della marcatura,
- * e siccome i pool e i tile di terreno marcano le loro mesh PRIMA che la
- * pipeline di post-processing venga montata, il risultato era ZERO mesh col
- * guscio — con un guadagno di venti fps che sembrava la soluzione e invece era
- * semplicemente l'assenza del contorno. Misurato, non supposto: `renderOutline`
- * vero su 0 mesh di 729.
+ * ⚠️ It applies both to those already born and to those yet to be born, and that
+ * is not a luxury: the first draft only applied it at marking time, and since the
+ * pools and the ground tiles mark their meshes BEFORE the post-processing pipeline
+ * is mounted, the result was ZERO meshes with a hull — with a twenty-fps gain
+ * that looked like the solution and was in fact simply the absence of the
+ * outline. Measured, not assumed: `renderOutline` true on 0 meshes out of 729.
  */
-/** Il guscio in modo COTTO: la geometria del bordo si appende alla mesh invece
- *  di accendere `renderOutline`. Zero draw call in più — v. la nota in
- *  `bakeCelHullIntoMesh` per le misure che motivano l'esistenza di un terzo
- *  modo. La cottura è irreversibile a runtime: si spegne solo ricaricando. */
+/** The hull in BAKED mode: the border geometry is attached to the mesh instead of
+ *  switching `renderOutline` on. Zero extra draw calls — see the note in
+ *  `bakeCelHullIntoMesh` for the measurements that justify a third mode existing.
+ *  Baking is irreversible at runtime: it only goes away on reload. */
 let hullBaked = false;
 
 export function setCelOutlineHullMode(
@@ -364,18 +366,18 @@ export function setCelOutlineHullMode(
     hullBakeSweep?.remove();
     hullBakeSweep = null;
 
-    // ⚠️ Il guscio veste TUTTO ciò che non è escluso, non le sole protagoniste.
+    // ⚠️ The hull dresses EVERYTHING that is not excluded, not just the heroes.
     //
-    // La prima stesura si fermava alle protagoniste e il risultato, visto a
-    // schermo, era che lo SCENARIO perdeva il tratto: fiori, massi, giganti e
-    // fondale diventavano macchie piatte accanto a ostacoli bordati. Il
-    // contorno non è una decorazione degli oggetti importanti — è ciò che tiene
-    // insieme il linguaggio, e a metà legge come un difetto di rendering.
+    // The first draft stopped at the heroes and the result, seen on screen, was
+    // that the SCENERY lost its stroke: flowers, boulders, giants and backdrop
+    // turned into flat patches next to outlined obstacles. The outline is not a
+    // decoration for important objects — it is what holds the visual language
+    // together, and applied halfway it reads as a rendering defect.
     //
-    // La regola è quindi la STESSA del post-process (`!outlineExcluded`), così
-    // le due tecniche disegnano lo stesso insieme e sono confrontabili: chi non
-    // vuole il tratto lo dichiara mesh per mesh, in un posto solo, e vale per
-    // entrambe.
+    // The rule is therefore the SAME as the post-process's (`!outlineExcluded`),
+    // so that the two techniques draw the same set and are comparable: whoever
+    // does not want the stroke declares it mesh by mesh, in one single place, and
+    // it applies to both.
     const wants = (mesh: AbstractMesh): boolean => {
         if (outlineExcluded.has(mesh)) return false;
         if (hullMinDiagonal <= 0 || isEssential(mesh)) return true;
@@ -389,27 +391,27 @@ export function setCelOutlineHullMode(
     const dress = (mesh: AbstractMesh, enable: boolean): void => {
         if (!hullBaked) { applyHull(mesh, enable); return; }
         if (!enable) return;
-        // ⚠️ La cottura NON può avvenire alla nascita della mesh: `new Mesh()`
-        // la aggiunge alla scena PRIMA che `applyToMesh` le dia i vertici, e
-        // una cottura su geometria vuota è un no-op silenzioso. Si coce al
-        // primo frame in cui la geometria c'è — il ritardo è invisibile (la
-        // mesh nasce fuori campo, nel prewarm o oltre la nebbia).
+        // ⚠️ Baking CANNOT happen when the mesh is born: `new Mesh()` adds it to
+        // the scene BEFORE `applyToMesh` gives it its vertices, and baking over
+        // empty geometry is a silent no-op. It bakes on the first frame in which
+        // the geometry is there — the delay is invisible (the mesh is born
+        // off-screen, in the prewarm or beyond the fog).
         if (mesh instanceof Mesh && mesh.getTotalVertices() > 0) {
-            // Già cotta = non toccarla più: senza questa uscita, al giro dopo
-            // la cottura risponde false («già fatta») e una protagonista cotta
-            // riceverebbe ANCHE il guscio per-mesh — contorno doppio e una
-            // draw call regalata, per mesh, per sempre.
+            // Already baked = never touch it again: without this early exit, on
+            // the next pass baking answers false («already done») and a baked
+            // hero would ALSO get the per-mesh hull — a double outline and one
+            // draw call given away, per mesh, forever.
             if (isCelHullBaked(mesh)) return;
-            // Specie di MASSA: sopra il tetto di istanze thin il guscio non
-            // si cuoce (v. `hullMaxThinInstances`). Salto senza memoizzare:
-            // il conteggio può crescere dopo, e un rifiuto permanente qui
-            // sarebbe deciso su un numero non ancora vero.
+            // MASS species: above the thin-instance cap the hull is not baked
+            // (see `hullMaxThinInstances`). Skipped without memoizing: the count
+            // can grow later, and a permanent refusal here would be decided on a
+            // number that is not yet true.
             if (mesh.thinInstanceCount > hullMaxThinInstances && !isEssential(mesh)) return;
             const baked = bakeCelHullIntoMesh(mesh, hullWidth, hullColor);
-            // Le PROTAGONISTE che la cottura rifiuta (materiale non-Standard —
-            // una skin PBR su tutte) tengono il guscio per-mesh: è
-            // una draw call l'una, e sono una manciata. Solo le protagoniste:
-            // per lo scenario che non si può cuocere il tratto lo fa il rim.
+            // The HEROES that baking refuses (non-Standard material — a PBR
+            // character above all) keep the per-mesh hull: that is one draw
+            // call each, and there is a handful of them. Heroes only: for the
+            // scenery that cannot be baked, the rim draws the stroke.
             if (!baked && isEssential(mesh) && !noHullFallback.has(mesh)) applyHull(mesh, true);
         }
     };
@@ -422,8 +424,8 @@ export function setCelOutlineHullMode(
         if (wants(mesh)) dress(mesh, true);
     });
     if (hullBaked) {
-        // Ripasso a ogni frame per le mesh nate vuote (v. sopra): il predicato
-        // e i WeakSet (cotte + rifiutate) rendono il giro un lookup per mesh.
+        // A per-frame sweep for meshes born empty (see above): the predicate and
+        // the WeakSets (baked + refused) reduce the pass to one lookup per mesh.
         const obs = scene.onBeforeRenderObservable.add(() => {
             for (const mesh of scene.meshes) {
                 if (wants(mesh)) dress(mesh, true);
@@ -433,28 +435,28 @@ export function setCelOutlineHullMode(
     }
 }
 
-/** Dichiara una mesh protagonista del contorno. */
+/** Declares a mesh essential to the outline. */
 export function markCelOutlineEssential(mesh: object): void {
     outlineEssential.add(mesh);
 }
 
-/** Protagoniste che NON devono ricadere sul guscio `renderOutline` quando la
- *  cottura le rifiuta. Nel modo cotto ogni fallback è una draw call vera (la
- *  mesh si disegna due volte), e sono le draw call — non i vertici — la valuta
- *  scarsa su A25 (~0.13 fps l'una). I tile di terreno sono il caso tipico:
- *  essenziali per la lista del G-buffer, ma il loro bordo lo disegnano già i
- *  props sul giunto — otto draw call per un tratto che c'è già. */
+/** Heroes that must NOT fall back to the `renderOutline` hull when baking
+ *  refuses them. In baked mode every fallback is a real draw call (the mesh is
+ *  drawn twice), and draw calls — not vertices — are the scarce currency on mid-tier Android
+ *  (~0.13 fps each). Ground tiles are the typical case: essential for the
+ *  G-buffer list, but their border is already drawn by the props sitting on the
+ *  seam — eight draw calls for a stroke that is already there. */
 const noHullFallback = new WeakSet<object>();
 
-/** Esclude una protagonista dal fallback `renderOutline` del modo cotto
- *  (resta nel G-buffer del post-process, dove non costa per-mesh). */
+/** Excludes a hero from baked mode's `renderOutline` fallback (it stays in the
+ *  post-process G-buffer, where it costs nothing per mesh). */
 export function markCelOutlineNoHullFallback(mesh: object): void {
     noHullFallback.add(mesh);
 }
 
-/** Una mesh è protagonista se lo è lei o il master da cui è istanziata: le
- *  istanze sono oggetti a sé e non ereditano nulla dal proprio master — è la
- *  stessa trappola già pagata sui `metadata` dei props. */
+/** A mesh is a hero if either it or the master it is instanced from is one:
+ *  instances are objects in their own right and inherit nothing from their master
+ *  — the same trap already paid for on the props' `metadata`. */
 function isEssential(mesh: AbstractMesh): boolean {
     if (outlineEssential.has(mesh)) return true;
     const src = (mesh as { sourceMesh?: object }).sourceMesh;
@@ -468,9 +470,9 @@ export interface CelOutlineHandle {
     dispose(): void;
 }
 
-/** Attacca il contorno post-process alla camera. Ritorna null se il G-buffer
- *  non è disponibile: meglio nessun contorno che un pass che campiona texture
- *  inesistenti e tinge lo schermo di nero. */
+/** Attaches the post-process outline to the camera. Returns null if the G-buffer
+ *  is unavailable: better no outline than a pass that samples non-existent
+ *  textures and paints the screen black. */
 export function attachCelOutline(
     scene: Scene,
     camera: Camera,
@@ -478,13 +480,13 @@ export function attachCelOutline(
 ): Nullable<CelOutlineHandle> {
     const opts: CelOutlineOptions = { ...DEFAULT_CEL_OUTLINE, ...overrides };
 
-    // ── Sorgente: G-buffer (depth+normali) o solo profondità ────────────────
+    // ── Source: G-buffer (depth+normals) or depth only ─────────────────────
     const depthRenderer = opts.depthOnly
-        // `storeCameraSpaceZ` = profondità in METRI di spazio vista, cioè la
-        // stessa unità che scrive il G-buffer. Senza, le soglie tarate su
-        // `fadeDistance` in metri agirebbero su un intervallo diverso e il
-        // contorno cambierebbe carattere senza che nessun parametro sia stato
-        // toccato — v. la nota su `fadeDistance`.
+        // `storeCameraSpaceZ` = depth in METERS of view space, i.e. the same unit
+        // the G-buffer writes. Without it, thresholds tuned on `fadeDistance` in
+        // meters would act on a different range and the outline would change
+        // character without any parameter having been touched — see the note on
+        // `fadeDistance`.
         ? scene.enableDepthRenderer(camera, false, false, undefined, true)
         : null;
 
@@ -493,25 +495,23 @@ export function attachCelOutline(
     // World-space normals remain stable while the camera moves. View-space
     // normals would make internal outlines flicker on nearly tangent surfaces.
     if (gbr) gbr.generateNormalsInWorldSpace = true;
-    // ⚠️ Esclusione MIRATA, non per categoria.
+    // ⚠️ TARGETED exclusion, not by category.
     //
-    // Il primo tentativo tolse dal G-buffer TUTTE le superfici trasparenti, per
-    // liberarsi di un caso solo: il quad BILLBOARD del riflesso della bolla,
-    // che essendo sempre rivolto alla camera ha per sagoma un rettangolo — e il
-    // contorno gli disegnava attorno un riquadro d'inchiostro, per tutta la
-    // partita.
+    // The first attempt removed ALL transparent surfaces from the G-buffer, to
+    // get rid of a single case: a BILLBOARD quad used for a reflection, which,
+    // always facing the camera, has a rectangle for a silhouette — and the
+    // outline drew an ink frame around it, permanently.
     //
-    // Il rimedio era troppo largo e ha portato via con sé il contorno delle
-    // PICKUP TRASLUCIDI, che sono trasparenti anche loro: senza tratto, una
-    // sfera translucida e pallida su una pista di sabbia chiara diventa
-    // invisibile. Sparivano dal gioco senza che nulla, nel codice dei
-    // collezionabili, potesse spiegarlo.
+    // The remedy was too broad and carried away with it the outline of every
+    // TRANSLUCENT PICKUP: with no stroke, a pale translucent sphere on a light
+    // ground becomes invisible. Those objects were vanishing from the scene with
+    // nothing in their own code able to explain it.
     //
-    // Quindi le trasparenti restano dentro — il contorno è ciò che le rende
-    // LEGGIBILI — e chi non vuole il tratto lo dichiara mesh per mesh.
+    // So the transparent ones stay in — the outline is what makes them READABLE —
+    // and whoever does not want the stroke declares it mesh by mesh.
     if (gbr) gbr.renderTransparentMeshes = true;
-    // Il predicato vive sul render-target del G-buffer, non sul renderer: è lui
-    // a ricostruire la lista delle mesh a ogni passata.
+    // The predicate lives on the G-buffer's render target, not on the renderer:
+    // it is the render target that rebuilds the mesh list on every pass.
     const sourceRtt = gbr ? gbr.getGBuffer() : depthRenderer?.getDepthMap();
     if (sourceRtt) {
         sourceRtt.renderListPredicate = (mesh: AbstractMesh): boolean =>
@@ -519,12 +519,12 @@ export function attachCelOutline(
                 ? isEssential(mesh) && !outlineExcluded.has(mesh)
                 : !outlineExcluded.has(mesh);
     }
-    // ⚠️ La MISURA della sorgente, stampata una volta. `enableGeometryBufferRenderer`
-    // torna il renderer GIÀ ESISTENTE se c'è, e in quel caso IGNORA il ratio
-    // richiesto: senza questa riga un esperimento "a mezza risoluzione" può
-    // essere girato a risoluzione piena senza che nulla lo dica, e il risultato
-    // nullo si legge come «la leva non serve» invece che «la leva non è stata
-    // tirata». È già successo.
+    // ⚠️ The source MEASUREMENT, printed once. `enableGeometryBufferRenderer`
+    // returns the ALREADY EXISTING renderer if there is one, and in that case it
+    // IGNORES the requested ratio: without this line a "half resolution"
+    // experiment can be run at full resolution with nothing to say so, and the
+    // null result reads as «the lever does not help» instead of «the lever was
+    // never pulled». It has happened before.
     if (sourceRtt) {
         const sz = sourceRtt.getSize();
         // eslint-disable-next-line no-console
@@ -556,10 +556,10 @@ export function attachCelOutline(
             depthTex = textures[depthIdx] as Texture | undefined;
             normalTex = textures[normalIdx] as Texture | undefined;
         } else if (depthRenderer) {
-            // Senza normali si lega la profondità a ENTRAMBI i sampler: il
-            // termine delle normali resta nello shader ma viene neutralizzato
-            // dalla soglia (sotto), e così non serve una seconda variante di
-            // shader da tenere in pari con questa.
+            // With no normals, depth is bound to BOTH samplers: the normals term
+            // stays in the shader but is neutralized by the threshold (below), so
+            // there is no need for a second shader variant to be kept in sync
+            // with this one.
             depthTex = depthRenderer.getDepthMap() as unknown as Texture;
             normalTex = depthTex;
         }
@@ -571,8 +571,8 @@ export function attachCelOutline(
         effect.setColor3('outlineColor', opts.color);
         effect.setFloat('thickness', opts.thickness);
         effect.setFloat('depthThreshold', opts.depthThreshold);
-        // Soglia irraggiungibile in modo depth-only: `step()` restituisce 0
-        // sempre, quindi il termine delle normali si spegne senza rami.
+        // An unreachable threshold in depth-only mode: `step()` always returns 0,
+        // so the normals term switches off without any branching.
         effect.setFloat('normalThreshold', opts.depthOnly ? 1e9 : opts.normalThreshold);
         effect.setFloat('fadeDistance', opts.fadeDistance);
         effect.setFloat('debugView', DEBUG_CODE[opts.debug]);

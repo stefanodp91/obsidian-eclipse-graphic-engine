@@ -1,27 +1,27 @@
-// Cel-shading — la matematica, come chunk GLSL condivisi.
+// Cel-shading — the math, as shared GLSL chunks.
 //
-// PERCHÉ STRINGHE E NON FILE .glsl: né il webpack del gioco né il Vite di
-// storybook hanno un loader per shader, e aggiungerne uno significherebbe
-// toccare due build config per un prototipo. Le stringhe attraversano entrambe
-// le pipeline senza configurazione.
+// WHY STRINGS AND NOT .glsl FILES: a consumer's bundler — webpack, Vite or
+// anything else — may well have no shader loader, and requiring one would mean
+// asking every integrator to change their build config. Strings go through any
+// pipeline with no configuration at all.
 //
-// PERCHÉ UN CHUNK SEPARATO DAL MATERIALE: il prototipo consuma questa matematica
-// via ShaderMaterial (controllo totale, che è quello che serve per GIUDICARE il
-// look). Se il look passa, la stessa identica stringa va iniettata in un
-// MaterialPluginBase e le ~40 spec materiali del gioco ereditano il cel senza
-// essere riscritte. Il chunk è il pezzo che rende economica quella migrazione:
-// non va duplicato, va importato.
+// WHY A CHUNK SEPARATE FROM THE MATERIAL: the prototype consumes this math via a
+// ShaderMaterial (total control, which is what is needed to JUDGE the look). If
+// the look passes, this exact same string gets injected into a
+// MaterialPluginBase and a consumer's several dozen material specs inherit cel without being
+// rewritten. The chunk is the piece that makes that migration cheap: it is not to
+// be duplicated, it is to be imported.
 //
-// Contratto: `CEL_FRAGMENT_FUNCTIONS` dichiara solo funzioni pure (nessuna
-// uniform, nessuna varying). Chi lo include deve aver già dichiarato le uniform
-// elencate in `CEL_FRAGMENT_UNIFORMS`.
+// Contract: `CEL_FRAGMENT_FUNCTIONS` declares pure functions only (no uniforms,
+// no varyings). Whoever includes it must already have declared the uniforms
+// listed in `CEL_FRAGMENT_UNIFORMS`.
 
-/** Uniform richieste da `CEL_FRAGMENT_FUNCTIONS` + dal corpo del fragment.
- *  Dichiarate qui una volta sola così il materiale e il futuro plugin non
- *  divergono sui nomi. */
+/** Uniforms required by `CEL_FRAGMENT_FUNCTIONS` + by the fragment body.
+ *  Declared here once so that the material and the future plugin do not diverge
+ *  on the names. */
 export const CEL_FRAGMENT_UNIFORMS = /* glsl */ `
 uniform vec3  celBaseColor;
-uniform vec3  celLightDirection;   // direzione DI PROPAGAZIONE della luce (dalla sorgente verso la scena)
+uniform vec3  celLightDirection;   // the light's PROPAGATION direction (from the source towards the scene)
 uniform vec3  celLightColor;
 uniform vec3  celAmbientSky;
 uniform vec3  celAmbientGround;
@@ -35,67 +35,67 @@ uniform float celSpecStrength;
 uniform float celSpecPower;
 uniform float celHatchStrength;
 uniform float celHatchScale;
-uniform float celRampBands;   // gradini della ramp: dice al retino dove finisce la banda d'ombra
+uniform float celRampBands;   // ramp steps: tells the hatching where the shadow band ends
 uniform float celFogDensity;
 uniform float celAlpha;
 uniform sampler2D celRampSampler;
 uniform sampler2D celHatchSampler;
 `;
 
-/** I termini del cel, uno per funzione.
+/** The cel terms, one per function.
  *
- *  VINCOLO WEBGPU — i sampler NON sono parametri di funzione ma riferimenti
- *  diretti alle uniform dichiarate sopra. Sotto WebGPU Babylon scompone
- *  `uniform sampler2D x` in una texture e un sampler separati e li ricombina
- *  nel punto d'uso; passare il combinato a una funzione fa fallire la
- *  compilazione in SPIR-V con «sampler constructor must appear at point of use»,
- *  mentre in WebGL2 lo stesso codice compila senza un fiato. Il gioco forza
- *  WebGL2 e lo storybook gira in WebGPU: entrambi devono compilare, quindi la
- *  regola vale sempre, anche dove sembra funzionare.
+ *  WEBGPU CONSTRAINT — the samplers are NOT function parameters but direct
+ *  references to the uniforms declared above. Under WebGPU Babylon splits
+ *  `uniform sampler2D x` into a separate texture and sampler and recombines them
+ *  at the point of use; passing the combined value to a function makes SPIR-V
+ *  compilation fail with «sampler constructor must appear at point of use»,
+ *  whereas in WebGL2 the same code compiles without a murmur. The game forces
+ *  WebGL2 and workbench harnesses run on WebGPU: both have to compile, so the rule always
+ *  holds, even where it seems to work.
  *
- *  Il resto degli input resta esplicito, così la migrazione a MaterialPluginBase
- *  potrà chiamare gli stessi termini nello stesso ordine dentro un contesto
- *  shader diverso. */
+ *  The rest of the inputs stay explicit, so that the migration to
+ *  MaterialPluginBase can call the same terms in the same order inside a
+ *  different shader context. */
 export const CEL_FRAGMENT_FUNCTIONS = /* glsl */ `
-// ── Banda di luce ────────────────────────────────────────────────────────────
-// Il cuore del cel. NdotL non modula il colore in modo continuo: sceglie una
-// BANDA in una ramp texture. La ramp porta sia il numero di gradini sia la loro
-// tinta (l'ombra di Borderlands non è il diffuse scurito, è più fredda e più
-// satura), quindi tutta l'art-direction dello shading vive in una texture 256x1
-// tarabile a runtime invece che in costanti sparse nello shader.
+// ── Light band ───────────────────────────────────────────────────────────────
+// The heart of cel. NdotL does not modulate the color continuously: it picks a
+// BAND in a ramp texture. The ramp carries both the number of steps and their
+// tint (Borderlands' shadow is not the darkened diffuse, it is colder and more
+// saturated), so all of the shading's art direction lives in a 256x1 texture
+// tunable at runtime instead of in constants scattered through the shader.
 //
-// half-lambert (ndl*0.5+0.5) invece di max(ndl,0): il lato in ombra riceve
-// comunque una banda propria invece di collassare a nero piatto. È la stessa
-// scelta di Valve su Team Fortress 2 ed è ciò che tiene leggibile la silhouette
-// quando la chiave è dura.
+// half-lambert (ndl*0.5+0.5) instead of max(ndl,0): the shadowed side still gets
+// a band of its own instead of collapsing to flat black. It is the same choice
+// Valve made on Team Fortress 2 and it is what keeps the silhouette readable
+// when the key light is hard.
 vec3 celLightBand(vec3 normalW, vec3 lightDir) {
     float ndl = dot(normalW, -normalize(lightDir));
     float t   = clamp(ndl * 0.5 + 0.5, 0.0, 1.0);
     return texture2D(celRampSampler, vec2(t, 0.5)).rgb;
 }
 
-// La COORDINATA di rampa, cioè dove questo pixel cade sull'asse 0..1 prima che
-// la ramp lo quantizzi. Serve al retino, che non deve sapere di che TINTA è la
-// banda ma in QUALE banda si trova: le tinte sono art-direction e cambiano per
-// livello, l'indice no.
+// The ramp COORDINATE, i.e. where this pixel falls on the 0..1 axis before the
+// ramp quantizes it. The hatching needs it: it does not have to know what TINT
+// the band is, but WHICH band it is in — the tints are art direction and change
+// per level, the index does not.
 float celRampCoord(vec3 normalW, vec3 lightDir) {
     float ndl = dot(normalW, -normalize(lightDir));
     return clamp(ndl * 0.5 + 0.5, 0.0, 1.0);
 }
 
-// ── Fill emisferico ──────────────────────────────────────────────────────────
-// Il riempimento resta PIATTO (non bandizzato) di proposito: se anche l'ambient
-// viene quantizzato, le due quantizzazioni battono l'una contro l'altra e
-// compaiono gradini spuri sulle superfici quasi perpendicolari alla chiave.
+// ── Hemispheric fill ─────────────────────────────────────────────────────────
+// The fill stays FLAT (not banded) on purpose: if the ambient is quantized too,
+// the two quantizations beat against each other and spurious steps appear on
+// surfaces nearly perpendicular to the key light.
 vec3 celAmbient(vec3 normalW, vec3 sky, vec3 ground) {
     float up = normalW.y * 0.5 + 0.5;
     return mix(ground, sky, up);
 }
 
-// ── Specular a blob ──────────────────────────────────────────────────────────
-// Anche la luce speculare va quantizzata, altrimenti è l'unico termine
-// fotorealistico rimasto e tradisce il resto: un gradino netto produce la
-// "macchia" di luce dei fumetti invece di un highlight morbido.
+// ── Blob specular ────────────────────────────────────────────────────────────
+// The specular light has to be quantized as well, otherwise it is the last
+// photorealistic term left and it gives the rest away: a hard step produces
+// comics' light "blob" instead of a soft highlight.
 vec3 celSpecular(vec3 normalW, vec3 viewDir, vec3 lightDir, vec3 specColor, float strength, float power) {
     if (strength <= 0.0) return vec3(0.0);
     vec3  h    = normalize(-normalize(lightDir) + viewDir);
@@ -103,46 +103,44 @@ vec3 celSpecular(vec3 normalW, vec3 viewDir, vec3 lightDir, vec3 specColor, floa
     return specColor * strength * step(0.5, spec);
 }
 
-// ── Rim d'inchiostro ─────────────────────────────────────────────────────────
-// Non è il rim-light luminoso del PBR: qui il bordo va SCURITO verso il colore
-// d'inchiostro. È il contorno "interno" — funziona sulle superfici curve dove
-// un edge-detect di profondità non trova discontinuità e quindi non disegna
-// nulla. I due meccanismi sono complementari, non alternativi.
+// ── Ink rim ──────────────────────────────────────────────────────────────────
+// This is not PBR's bright rim light: here the edge is DARKENED towards the ink
+// color. It is the "inner" outline — it works on curved surfaces where a depth
+// edge-detect finds no discontinuity and therefore draws nothing. The two
+// mechanisms are complementary, not alternatives.
 float celInkRim(vec3 normalW, vec3 viewDir, float width, float strength) {
     if (strength <= 0.0) return 0.0;
     float fres = 1.0 - clamp(dot(normalW, viewDir), 0.0, 1.0);
     return smoothstep(1.0 - width, 1.0, fres) * strength;
 }
-
-// ── Tratteggio ───────────────────────────────────────────────────────────────
-// Il pezzo che di solito viene dimenticato quando si imita Borderlands: senza
-// tratteggio si ottiene un cel-shading pulito da cartone animato, non un
-// disegno a penna. Campionato in SCREEN SPACE (come un retino da stampa) e
-// applicato solo dove la luce è bassa: il tratto vive sulla carta, non sul
-// modello, ed è esattamente questa incoerenza che lo fa leggere come disegnato.
-// IL RETINO VIVE NELLA BANDA PIÙ SCURA, E SOLO LÌ.
+// ── Hatching ─────────────────────────────────────────────────────────────────
+// The piece usually forgotten when imitating Borderlands: without hatching you
+// get a clean cartoon cel-shading, not a pen drawing. Sampled in SCREEN SPACE
+// (like a print halftone) and applied only where the light is low: the stroke
+// lives on the paper, not on the model, and it is exactly that inconsistency
+// that makes it read as drawn.
+// THE HATCHING LIVES IN THE DARKEST BAND, AND ONLY THERE.
 //
-// La finestra precedente (1 - smoothstep(0.30, 0.95, luminanza di banda))
-// prendeva la banda scura piena, la media per circa un terzo e lasciava pulita
-// solo la chiara — e sotto l'impianto luci di un gioco vero metà del mondo cade
-// nella zona intermedia, quindi il tratteggio compariva su superfici che
-// l'occhio legge come illuminate. Era una finestra tarata su una scena da
-// laboratorio, dove la luce arriva da uniform a intensità 1.
+// The previous window (1 - smoothstep(0.30, 0.95, band luminance)) took the dark
+// band in full, the middle one for roughly a third and left only the light one
+// clean — and under a real game's lighting rig half the world falls in the
+// intermediate zone, so the hatching showed up on surfaces the eye reads as lit.
+// It was a window tuned on a laboratory scene, where the light comes from
+// uniforms at intensity 1.
 //
-// Ora il confine è la banda, non una soglia di luminanza: rampU è la
-// coordinata 0..1 PRIMA della quantizzazione, e la prima banda finisce a
-// 1/bands. Sotto quel confine il retino è pieno, sopra è zero, con una
-// dissolvenza corta sull'ultimo 15% della banda che serve solo a non far
-// scattare il bordo di un pixel.
+// Now the boundary is the band, not a luminance threshold: rampU is the 0..1
+// coordinate BEFORE quantization, and the first band ends at 1/bands. Below that
+// boundary the hatching is full, above it it is zero, with a short fade over the
+// band's last 15% whose only job is to keep the edge from snapping by a pixel.
 //
-// ⚠️ La coordinata e non la luminanza della banda: la tinta d'ombra è
-// art-direction e cambia per livello (un consumer può dichiararne una per
-// livello), quindi una soglia in luminanza si sposterebbe da un livello all'altro
-// mentre l'indice di banda resta lo stesso ovunque.
+// ⚠️ The coordinate and not the band's luminance: the shadow tint is art
+// direction and changes per level (a consumer may declare one per level),
+// so a luminance threshold would move from one level to the next while the band
+// index stays the same everywhere.
 //
-// ⚠️ bands = 0 è la rampa CONTINUA del laboratorio, dove una «banda più
-// scura» non esiste: lì vale il terzo inferiore dell'asse, che è la stessa
-// frazione che una rampa a tre gradini darebbe.
+// ⚠️ bands = 0 is the laboratory's CONTINUOUS ramp, where a «darkest band» does
+// not exist: there the lower third of the axis applies, which is the same
+// fraction a three-step ramp would give.
 float celHatchMask(float rampU, float bands) {
     float edge = bands > 0.5 ? 1.0 / bands : 0.34;
     return 1.0 - smoothstep(edge * 0.85, edge, rampU);
@@ -154,10 +152,10 @@ float celHatch(vec2 fragCoord, float rampU, float bands, float scale, float stre
     return 1.0 - (1.0 - h) * celHatchMask(rampU, bands) * strength;
 }
 
-// ── Nebbia ───────────────────────────────────────────────────────────────────
-// Fog proprio invece di quello di Babylon: ShaderMaterial non lega le uniform
-// di scena vFogInfos/vFogColor, e legarle a mano richiederebbe un observer di
-// bind per un termine che qui sono tre righe.
+// ── Fog ──────────────────────────────────────────────────────────────────────
+// Its own fog instead of Babylon's: ShaderMaterial does not bind the scene
+// uniforms vFogInfos/vFogColor, and binding them by hand would require a bind
+// observer for a term that here amounts to three lines.
 vec3 celFog(vec3 color, vec3 fogColor, float density, float dist) {
     if (density <= 0.0) return color;
     float f = 1.0 - clamp(exp(-density * density * dist * dist), 0.0, 1.0);
@@ -165,10 +163,10 @@ vec3 celFog(vec3 color, vec3 fogColor, float density, float dist) {
 }
 `;
 
-/** Corpo del fragment: compone i termini nell'ordine canonico. Estratto come
- *  costante separata perché è la parte che il plugin di migrazione dovrà
- *  ADATTARE (lì il colore base arriva dal materiale ospite, non da una uniform),
- *  mentre le funzioni sopra restano identiche. */
+/** Fragment body: composes the terms in the canonical order. Extracted as a
+ *  separate constant because it is the part the migration plugin will have to
+ *  ADAPT (there the base color comes from the host material, not from a uniform),
+ *  while the functions above stay identical. */
 export const CEL_FRAGMENT_BODY = /* glsl */ `
     vec3 normalW = normalize(vNormalW);
     vec3 viewDir = normalize(celCameraPosition - vPositionW);
@@ -194,10 +192,10 @@ export const CEL_FRAGMENT_BODY = /* glsl */ `
     gl_FragColor = vec4(color, celAlpha);
 `;
 
-/** Vertex shader completo. `#include<instancesDeclaration>` / `<instancesVertex>`
- *  sono chunk di Babylon: passano dall'ShaderProcessor anche in uno
- *  ShaderMaterial, quindi l'hardware instancing continua a funzionare senza
- *  che il prototipo debba riscrivere il path di skinning delle istanze. */
+/** Complete vertex shader. `#include<instancesDeclaration>` /
+ *  `<instancesVertex>` are Babylon chunks: they go through the ShaderProcessor
+ *  in a ShaderMaterial too, so hardware instancing keeps working without the
+ *  prototype having to rewrite the instances' skinning path. */
 export const CEL_VERTEX_SHADER = /* glsl */ `
 precision highp float;
 
@@ -226,9 +224,9 @@ void main(void) {
 
     vec4 worldPos = finalWorld * vec4(position, 1.0);
     vPositionW = worldPos.xyz;
-    // Inversa-trasposta omessa: gli asset del prototipo usano scale uniformi.
-    // Con scale non uniformi le normali andrebbero storte — vincolo dichiarato,
-    // non dimenticato.
+    // Inverse-transpose omitted: the prototype's assets use uniform scales. With
+    // non-uniform scales the normals would come out skewed — a declared
+    // constraint, not a forgotten one.
     vNormalW = normalize(mat3(finalWorld) * normal);
 #ifdef UV1
     vUV = uv;
@@ -261,10 +259,10 @@ ${CEL_FRAGMENT_BODY}
 }
 `;
 
-/** Vertex shader del guscio invertito (candidato outline B). Estrude lungo la
- *  normale in spazio mondo. Vive qui e non nel file dell'outline perché
- *  condivide con il cel la stessa convenzione di instancing: se le due
- *  divergessero, il guscio scivolerebbe rispetto alla mesh sulle istanze. */
+/** Vertex shader of the inverted hull (outline candidate B). Extrudes along the
+ *  normal in world space. It lives here and not in the outline file because it
+ *  shares the same instancing convention as cel: if the two diverged, the hull
+ *  would slide relative to the mesh on instances. */
 export const CEL_HULL_VERTEX_SHADER = /* glsl */ `
 precision highp float;
 
@@ -286,7 +284,7 @@ void main(void) {
 }
 `;
 
-/** Fragment del guscio: tinta unita, nessuna illuminazione. */
+/** Hull fragment: flat tint, no lighting. */
 export const CEL_HULL_FRAGMENT_SHADER = /* glsl */ `
 precision highp float;
 uniform vec3 hullColor;

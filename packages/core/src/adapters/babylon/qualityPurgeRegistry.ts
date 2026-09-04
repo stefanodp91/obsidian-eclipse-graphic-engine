@@ -8,8 +8,8 @@
 //
 // Convention: infra purgers (MaterialLibrary, MeshPool, sharedShapes,
 // shadow textures) are registered once at startup by the engine; content
-// purgers (flora, track shared assets, game-specific caches) are registered
-// game-side via registerScenePurge().
+// purgers (flora, shared level assets, application-specific caches) are
+// registered by the consumer via registerScenePurge().
 
 import type { Scene } from '@babylonjs/core';
 import { getEngineIsDev } from '../../domain/engineConfig';
@@ -20,12 +20,13 @@ const purgers: Array<{ label: string; fn: ScenePurgeFn }> = [];
 
 /** Register a per-scene cache purger. `label` is used only for dev logging.
  *
- *  Returns a de-registration function. Il registro è un array a scope di MODULO,
- *  quindi vive quanto il bundle e non quanto la scena: un chiamante che registra
- *  per-scena (o per-mondo) senza deregistrare accumulava una voce a ogni giro, e
- *  ogni purge successivo eseguiva anche tutte le chiusure dei mondi precedenti —
- *  che trattengono in vita le scene che avrebbero dovuto liberare. Chi registra
- *  una volta sola al boot (il caso previsto) può semplicemente ignorare il ritorno. */
+ *  Returns a de-registration function. The registry is a MODULE-scoped array, so
+ *  it lives as long as the bundle and not as long as the scene: a caller that
+ *  registers per scene (or per world) without de-registering accumulated one
+ *  entry per round, and every subsequent purge also ran all the closures of the
+ *  previous worlds — which keep alive the very scenes they were supposed to free.
+ *  A caller that registers once at boot (the expected case) can simply ignore the
+ *  return value. */
 export function registerScenePurge(label: string, fn: ScenePurgeFn): () => void {
     const entry = { label, fn };
     purgers.push(entry);

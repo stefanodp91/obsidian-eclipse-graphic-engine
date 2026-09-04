@@ -1,25 +1,24 @@
-// CelLook — gli assi di TARATURA del look cel, in un tipo solo.
+// CelLook — the cel look's TUNING axes, in a single type.
 //
-// Il cel-shading non è un sottosistema: è quattro (ramp, materiale, contorno,
-// grade), ognuno con la propria API e il proprio handle. Chi vuole tarare il
-// look deve quindi scrivere a mano il fan-out su quattro oggetti diversi, e
-// ogni harness che lo fa ne scrive una copia leggermente diversa — il pannello
-// del gioco, le storie del lab, domani un altro progetto.
+// Cel-shading is not one subsystem: it is four (ramp, material, outline, grade),
+// each with its own API and its own handle. Anyone who wants to tune the look
+// therefore has to write the fan-out over four different objects by hand, and
+// every harness that does it writes a slightly different copy — a consumer's tuning panel,
+// an external tuning harness, tomorrow another project.
 //
-// Questo file è quella scrittura fatta UNA volta. Il tipo `CelLookTuning`
-// raccoglie i soli assi che si toccano davvero in fase di taratura;
-// `applyCelLook` li smista sugli handle giusti; `CEL_LOOK_CONTROLS` descrive
-// intervallo e passo di ciascuno, così un pannello o degli argTypes di Storybook
-// li leggono invece di riscriverli.
+// This file is that piece of writing done ONCE. The `CelLookTuning` type collects
+// only the axes that are actually touched while tuning; `applyCelLook` dispatches
+// them to the right handles; `CEL_LOOK_CONTROLS` describes each one's range and
+// step, so that a panel or Storybook argTypes read them instead of rewriting
+// them.
 //
-// COSA NON STA QUI: i valori tarati per una scena specifica (portata della
-// dissolvenza, densità di nebbia, tinta dell'ombra) e le etichette in lingua.
-// I primi dipendono dalla scala del contenuto — un fondale a 125 m chiede una
-// dissolvenza che su un livello raccolto sarebbe assurda — e appartengono a chi
-// il contenuto lo possiede. Le seconde appartengono all'interfaccia. Qui restano
-// solo i default NEUTRI, presi dai default dei quattro sottosistemi invece che
-// riscritti: una taratura di default che vive in due posti diverge alla prima
-// modifica.
+// WHAT DOES NOT BELONG HERE: values tuned for a specific scene (fade range, fog
+// density, shadow tint) and the labels in a given language. The former depend on
+// the content's scale — a backdrop at 125 m calls for a fade that on a compact
+// level would be absurd — and belong to whoever owns the content. The latter
+// belong to the interface. What stays here is only the NEUTRAL defaults, taken
+// from the four subsystems' own defaults rather than rewritten: a default tuning
+// that lives in two places diverges at the first change.
 
 import { DEFAULT_CEL_RAMP, type CelRampSpec } from './celRamp';
 import { DEFAULT_CEL_OPTIONS, type CelMaterialHandle } from './CelMaterial';
@@ -27,36 +26,36 @@ import { DEFAULT_CEL_OUTLINE, type CelOutlineHandle } from './CelOutlinePostProc
 import { DEFAULT_CEL_GRADE, type CelGradeHandle } from './celGrade';
 import { configureCelPlugin } from './CelMaterialPlugin';
 
-/** Gli assi di taratura del look, piatti perché è così che li presenta
- *  qualunque pannello: un valore per riga. La composizione nei quattro
- *  sottosistemi la fa `applyCelLook`, non il chiamante. */
+/** The look's tuning axes, flat because that is how any panel presents them: one
+ *  value per row. Composing them into the four subsystems is `applyCelLook`'s
+ *  job, not the caller's. */
 export interface CelLookTuning {
     // ── Shading ──
-    /** Gradini della ramp. 0-1 = rampa continua, cioè il riferimento "non-cel". */
+    /** Ramp steps. 0-1 = continuous ramp, i.e. the "non-cel" reference. */
     bands: number;
-    /** Ampiezza della transizione fra gradini (0 = stacco netto). */
+    /** Width of the transition between steps (0 = hard cut). */
     softness: number;
     hatchStrength: number;
-    /** Lato della tile di tratteggio in pixel di schermo. */
+    /** Side of the hatching tile, in screen pixels. */
     hatchScale: number;
     rimStrength: number;
     fogDensity: number;
-    // ── Contorno ──
-    /** Spegne il contorno SENZA staccare il post-process: vedi `applyCelLook`. */
+    // ── Outline ──
+    /** Switches the outline off WITHOUT detaching the post-process: see `applyCelLook`. */
     outlineEnabled: boolean;
     outlineThickness: number;
     depthThreshold: number;
     normalThreshold: number;
-    /** Distanza in METRI oltre la quale il tratto svanisce. 0 = mai. */
+    /** Distance in METERS beyond which the stroke fades out. 0 = never. */
     outlineFade: number;
-    // ── Colore ──
+    // ── Color ──
     saturation: number;
     contrast: number;
 }
 
-/** Neutro: ogni valore è il default del sottosistema che lo consuma, non una
- *  seconda dichiarazione dello stesso numero. Un progetto parte da qui e
- *  sovrascrive solo ciò che la sua scena richiede davvero. */
+/** Neutral: every value is the default of the subsystem that consumes it, not a
+ *  second declaration of the same number. A project starts from here and
+ *  overrides only what its scene really requires. */
 export const DEFAULT_CEL_LOOK: CelLookTuning = {
     bands: DEFAULT_CEL_RAMP.bands,
     softness: DEFAULT_CEL_RAMP.softness,
@@ -73,34 +72,34 @@ export const DEFAULT_CEL_LOOK: CelLookTuning = {
     contrast: DEFAULT_CEL_GRADE.contrast,
 };
 
-/** Dove va applicata la taratura. Tutti i campi sono opzionali: un harness che
- *  non ha contorno passa solo il materiale, e le storie che tarano il solo grade
- *  passano solo quello. */
+/** Where the tuning is to be applied. Every field is optional: a harness with no
+ *  outline passes only the material, and the stories that tune the grade alone
+ *  pass only that. */
 export interface CelLookTargets {
     material?: CelMaterialHandle | null | undefined;
     outline?: CelOutlineHandle | null | undefined;
     grade?: CelGradeHandle | null | undefined;
-    /** Ramp di base su cui innestare `bands`/`softness`. Serve perché la ramp
-     *  porta anche le due TINTE (ombra, luce), che sono art-direction e non assi
-     *  di taratura: senza una base da cui partire si perderebbero a ogni
-     *  applicazione. Default: la ramp neutra del motore. */
+    /** Base ramp on which to graft `bands`/`softness`. It is needed because the
+     *  ramp also carries the two TINTS (shadow, light), which are art direction
+     *  and not tuning axes: without a base to start from they would be lost on
+     *  every application. Default: the engine's neutral ramp. */
     ramp?: CelRampSpec | undefined;
-    /** Ritara anche le impostazioni globali del MaterialPlugin — il path di
-     *  produzione, dove il cel gira su StandardMaterial esistenti invece che sul
-     *  ShaderMaterial del prototipo. Così una taratura approvata sul prototipo
-     *  si trasferisce senza essere ribattuta a mano. */
+    /** Also retunes the MaterialPlugin's global settings — the production path,
+     *  where cel runs on existing StandardMaterials instead of on the prototype's
+     *  ShaderMaterial. That way a tuning approved on the prototype transfers
+     *  across without being redone by hand. */
     plugin?: boolean | undefined;
 }
 
-/** Soglia irraggiungibile = nessun pixel supera il test = nessun tratto. */
+/** An unreachable threshold = no pixel passes the test = no stroke. */
 const OUTLINE_OFF_THRESHOLD = 1e9;
 
-/** Smista una taratura completa sugli handle. Idempotente: si può chiamare a
- *  ogni cambio di stato senza tenere traccia di cosa è cambiato.
+/** Dispatches a complete tuning onto the handles. Idempotent: it can be called on
+ *  every state change without keeping track of what changed.
  *
- *  Nessuna ricostruzione: tutto ciò che tocca qui è uniform, texture di lookup
- *  in cache o parametro di post-process. È il presupposto perché uno slider
- *  risponda mentre la scena scorre. */
+ *  No rebuilds: everything it touches here is a uniform, a cached lookup texture
+ *  or a post-process parameter. That is the precondition for a slider to respond
+ *  while the scene is running. */
 export function applyCelLook(targets: CelLookTargets, look: CelLookTuning): void {
     const ramp: CelRampSpec = {
         ...(targets.ramp ?? DEFAULT_CEL_RAMP),
@@ -116,9 +115,10 @@ export function applyCelLook(targets: CelLookTargets, look: CelLookTuning): void
         fogDensity: look.fogDensity,
     });
 
-    // Il contorno si spegne portando le soglie fuori scala, non staccando il
-    // pass: togliere e rimettere il post-process ricompilerebbe lo shader a ogni
-    // click, e il confronto con/senza contorno deve essere immediato.
+    // The outline is switched off by taking the thresholds out of range, not by
+    // detaching the pass: removing and re-adding the post-process would recompile
+    // the shader on every click, and the with/without-outline comparison has to
+    // be immediate.
     targets.outline?.apply({
         thickness: look.outlineEnabled ? look.outlineThickness : 0,
         depthThreshold: look.outlineEnabled ? look.depthThreshold : OUTLINE_OFF_THRESHOLD,
@@ -129,8 +129,8 @@ export function applyCelLook(targets: CelLookTargets, look: CelLookTuning): void
     targets.grade?.apply({ saturation: look.saturation, contrast: look.contrast });
 
     if (targets.plugin) {
-        // Il plugin non ha un termine di nebbia proprio: sullo StandardMaterial
-        // la nebbia è quella di scena. Gli altri assi coincidono.
+        // The plugin has no fog term of its own: on StandardMaterial the fog is
+        // the scene's. The other axes coincide.
         configureCelPlugin({
             ramp,
             hatchStrength: look.hatchStrength,
@@ -140,12 +140,12 @@ export function applyCelLook(targets: CelLookTargets, look: CelLookTuning): void
     }
 }
 
-// ── Descrizione dei comandi ──────────────────────────────────────────────────
-// Intervallo, passo e cifre significative di ciascun asse. Sta nel motore
-// perché sono proprietà del PARAMETRO, non del pannello: `softness` sopra ~0.45
-// smette di produrre bande in qualunque progetto, e `hatchScale` sotto ~96 px
-// aliasa comunque. Le etichette invece non stanno qui — quelle sono lingua e
-// interfaccia, e appartengono a chi disegna il pannello.
+// ── Control description ──────────────────────────────────────────────────────
+// Range, step and significant digits of each axis. It lives in the engine because
+// these are properties of the PARAMETER, not of the panel: `softness` above ~0.45
+// stops producing bands in any project, and `hatchScale` below ~96 px aliases
+// regardless. The labels, by contrast, do not live here — those are language and
+// interface, and they belong to whoever designs the panel.
 
 export type CelLookGroup = 'shading' | 'outline' | 'color';
 
@@ -156,8 +156,8 @@ interface CelLookRangeControl {
     min: number;
     max: number;
     step: number;
-    /** Cifre decimali da mostrare. Un valore che si legge "0.02000000001"
-     *  mentre si trascina non aiuta nessuno. */
+    /** Decimal digits to display. A value that reads "0.02000000001" while you
+     *  drag it helps nobody. */
     digits: number;
 }
 
@@ -185,18 +185,18 @@ export const CEL_LOOK_CONTROLS: readonly CelLookControl[] = [
     { field: 'fogDensity', group: 'color', kind: 'range', min: 0, max: 0.03, step: 0.001, digits: 3 },
 ];
 
-/** I comandi di un gruppo, nell'ordine dichiarato. */
+/** A group's controls, in declared order. */
 export function celLookControlsOf(group: CelLookGroup): readonly CelLookControl[] {
     return CEL_LOOK_CONTROLS.filter((c) => c.group === group);
 }
 
-/** L'intervallo di un asse, per chi deve dichiarare un controllo da solo —
- *  gli `argTypes` di Storybook, che vogliono min/max/step in un oggetto proprio
- *  e non possono ciclare sulla lista. */
+/** An axis's range, for whoever has to declare a control on their own —
+ *  Storybook's `argTypes`, which want min/max/step in an object of their own and
+ *  cannot loop over the list. */
 export function celLookRange(field: keyof CelLookTuning): CelLookRangeControl {
     const c = CEL_LOOK_CONTROLS.find((x) => x.field === field);
     if (c?.kind !== 'range') {
-        throw new Error(`celLookRange: "${field}" non è un asse continuo`);
+        throw new Error(`celLookRange: "${field}" is not a continuous axis`);
     }
     return c;
 }

@@ -40,7 +40,7 @@ export function useEngine(): GraphicEngine | null {
 }
 
 // subscribe/getSnapshot are memoized on `engine` so useSyncExternalStore does
-// NOT tear down + re-subscribe on every host re-render (e.g. PerfHud's 250ms
+// NOT tear down + re-subscribe on every host re-render (e.g. a perf HUD's 250ms
 // tick would otherwise churn ~16 unsubscribe/resubscribe cycles/sec).
 
 /** Reactive read of the resolved tier snapshot, or null before the first probe

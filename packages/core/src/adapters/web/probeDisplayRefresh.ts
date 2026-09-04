@@ -4,7 +4,7 @@
 // Sampling rAF deltas is — vsync paces them to the real refresh rate.
 //
 // Continuous re-probing: the initial 60-frame probe at boot can land during
-// the LTPO transition window (Samsung A25: display starts at 120Hz, the
+// the LTPO transition window (observed on a Galaxy A25: the display starts at 120Hz, the
 // preferredRefreshRate=60 hint triggers a transition to 60Hz mid-probe →
 // median lands ~19.5ms = 51Hz). Re-probe every PROBE_INTERVAL_MS so the
 // HUD reflects the settled refresh rate after boot.
@@ -12,7 +12,7 @@
 const SAMPLE_COUNT = 60;
 const PROBE_INTERVAL_MS = 5000;   // re-probe every 5s
 // Stop re-probing once the cadence has settled. The boot probe can land mid
-// LTPO transition (A25: 120→60 hint), and attachRefreshPreference caps maxFPS
+// LTPO transition (on that device, a 120→60 hint), and attachRefreshPreference caps maxFPS
 // after boot, so the first 1-2 reads may differ; once N consecutive probes
 // agree the refresh is stable and the perpetual rAF loop is pure battery drain
 // (it wakes the main thread at vsync even when the render loop is idled).

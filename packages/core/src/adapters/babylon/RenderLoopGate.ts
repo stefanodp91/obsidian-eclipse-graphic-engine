@@ -50,12 +50,12 @@ export function setupRenderLoopGate(
                     // Tolleranza di mezzo frame di vsync.
                     //
                     // Il confronto secco `now - last < 1000/cap` sembra corretto e
-                    // non lo è: il rAF arriva su multipli del refresh del pannello,
-                    // quindi un frame che cade UN MILLISECONDO prima della scadenza
-                    // viene saltato e il successivo arriva un refresh intero dopo.
-                    // A 60Hz con cap 40 il risultato non è 40 fps ma 30 — un intero
-                    // gradino perso, sotto forma di battimento. Concedere metà
-                    // periodo di refresh fa cadere la decisione dalla parte giusta.
+                    // it is not: rAF arrives on multiples of the panel's refresh,
+                    // so a frame landing ONE MILLISECOND before the deadline is
+                    // skipped and the next one arrives a whole refresh later. At
+                    // 60Hz with a cap of 40 the result is not 40 fps but 30 — a
+                    // whole step lost, in the form of beating. Granting half a
+                    // refresh period makes the decision fall on the right side.
                     const period = 1000 / cap;
                     const tolerance = period * 0.5;
                     if (now - lastRenderMs < period - tolerance) return;   // skip: throttle
@@ -67,11 +67,11 @@ export function setupRenderLoopGate(
         }
     };
 
-    // ⚠️ Il timer va tenuto e annullato al teardown. Senza, uno smontaggio nel
-    // primo secondo di vita (cambio livello rapido, boot annullato, StrictMode)
-    // lascia il timer vivo: scatta dopo che tutto è stato disposto e RIAVVIA un
-    // render loop su un engine morto. Il sintomo è un crash dentro Babylon che
-    // non ha alcun rapporto visibile con lo smontaggio che l'ha causato.
+    // ⚠️ The timer has to be kept and cancelled at teardown. Without that, an
+    // unmount in the window between the request and the callback leaves the timer
+    // alive: it fires after everything has been disposed and RESTARTS a render
+    // loop on a dead engine. The symptom is a crash inside Babylon with no
+    // visible relation to the unmount that caused it.
     const bootTimer = setTimeout(resolveRenderLoop, 1000);
 
     const unsubRender = opts.onRenderActiveChange(resolveRenderLoop);
@@ -84,9 +84,8 @@ export function setupRenderLoopGate(
             clearTimeout(bootTimer);
             unsubRender();
             unsubApp();
-            // Il gate ha ACCESO questo loop: spegnerlo è parte del suo teardown.
-            // Lasciarlo girare significa continuare a renderizzare (e a consumare
-            // batteria) dopo che il proprietario se n'è andato.
+            // The gate SWITCHED this loop on: switching it off is part of its
+            // teardown.
             if (loopRunning) {
                 engine.stopRenderLoop();
                 loopRunning = false;

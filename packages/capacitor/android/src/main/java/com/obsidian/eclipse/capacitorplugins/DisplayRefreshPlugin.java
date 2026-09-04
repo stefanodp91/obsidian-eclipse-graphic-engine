@@ -111,7 +111,7 @@ public class DisplayRefreshPlugin extends Plugin {
      * would otherwise throttle rAF erratically). "max" picks the highest refresh
      * at the CURRENT resolution.
      *
-     * Samsung A25 quirk: at onAttachedToWindow the WindowManager has not yet
+     * Samsung Galaxy A25 quirk: at onAttachedToWindow the WindowManager has not yet
      * applied the policy switch — getSupportedModes() can return only the active
      * mode, so the lookup can miss. The host applies at BOTH onAttachedToWindow
      * AND onWindowFocusChanged (latter fires after policy + display settle).

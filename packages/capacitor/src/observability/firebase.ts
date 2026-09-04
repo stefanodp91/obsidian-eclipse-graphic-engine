@@ -1,9 +1,9 @@
 // Firebase implementations of the observability contracts, backed by the
 // @capacitor-firebase/* plugins (auto-registered natively via `npx cap sync`).
 //
-// Each factory is async and resolves to `null` off-native, so the game keeps
+// Each factory is async and resolves to `null` off-native, so the consuming application keeps
 // its Noop impls on web/dev. The plugin modules are plain dynamic imports —
-// same rule as src/index.ts: the game's webpack bundles them into async
+// same rule as src/index.ts: a consumer's webpack build bundles them into async
 // chunks; `webpackIgnore` would leave a bare specifier a WebView cannot
 // resolve. Event calls stay best-effort; setEnabled propagates bridge failures
 // because it is the user-visible consent kill-switch.

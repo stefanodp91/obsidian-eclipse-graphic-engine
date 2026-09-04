@@ -3,7 +3,7 @@
 //
 // The TS facade is shipped as a built ESM package. Capacitor remains a peer so
 // the host supplies one bridge instance and its bundler owns async chunks.
-// Plugin imports are plain dynamic imports so the game's webpack bundles them
+// Plugin imports are plain dynamic imports so a consumer's webpack build bundles them
 // into async chunks: a WebView (capacitor:// / file://) cannot resolve a bare
 // npm specifier at runtime, so `webpackIgnore` would leave them unresolvable on
 // device and silently fall back to web behavior. `@capacitor/core` is aliased.
@@ -32,35 +32,34 @@ const isNativePlatform = (): boolean => {
     try { return Capacitor.isNativePlatform(); } catch { return false; }
 };
 
-// ── Error sink ───────────────────────────────────────────────────────────────
-// Ogni fallimento nativo qui sotto è dietro un `catch` che ricade sul
-// comportamento web. Il fallback è la scelta giusta — l'app non deve morire
-// perché manca un plugin — ma finora era anche MUTO, e i due esiti più costosi
-// sono indistinguibili a occhio: `prefs` che ricade su localStorage significa
-// progressi NON durevoli (una pulizia cache della WebView li cancella), e
-// `readThermalState` che ricade su 'nominal' significa governor termico disarmato.
+// Every native failure below is behind a `catch` that falls back to the web
+// behavior. The fallback is the right choice — the app must not die because a
+// plugin is missing — but until now it was also SILENT, and the two costliest
+// outcomes are indistinguishable by eye: `prefs` falling back to localStorage
+// means progress is NOT durable (a WebView cache clear wipes it), and
+// `readThermalState` falling back to 'nominal' means a disarmed thermal governor.
 //
-// Stesso contratto dell'ErrorSink del motore: no-op finché l'host non inietta
-// nulla, così il package resta silenzioso e senza dipendenze di default.
+// Same contract as the engine's ErrorSink: a no-op until the host injects
+// anything, so the package stays silent and dependency-free by default.
 type PluginErrorSink = (domain: string, error: unknown, context?: Record<string, string | number | boolean | null>) => void;
 
 let _errorSink: PluginErrorSink | null = null;
 
-/** Inietta (o azzera) il sink di errore dell'host. Da chiamare una volta al boot. */
+/** Injects (or clears) the host's error sink. To be called once at boot. */
 export function setNativeErrorSink(sink: PluginErrorSink | null): void {
     _errorSink = sink;
 }
 
 function reportNativeError(domain: string, error: unknown, context?: Record<string, string | number | boolean | null>): void {
     if (!_errorSink) return;
-    try { _errorSink(domain, error, context); } catch { /* un sink rotto non deve destabilizzare il bridge */ }
+    try { _errorSink(domain, error, context); } catch { /* a broken sink must not destabilize the bridge */ }
 }
 
-// ── Proxy dei plugin custom, risolti una volta sola ──────────────────────────
-// `registerPlugin` costruisce un Proxy a ogni chiamata. Le funzioni termiche
-// sotto sono POLLATE (il governor le interroga a intervalli, il PerfHud pure):
-// risolverle a ogni lettura significava un Proxy nuovo per campione. Memoizzate
-// qui come già faceva `getDisplayRefreshPlugin`.
+// ── Custom plugin proxies, resolved once ─────────────────────────────────────
+// `registerPlugin` builds a Proxy on every call. The thermal functions below are
+// POLLED (the governor queries them at intervals, and so does a perf HUD does too):
+// resolving them on every read meant a new Proxy per sample. Memoized here, as
+// `getDisplayRefreshPlugin` already did.
 interface ThermalStateNativePlugin {
     getState(): Promise<{ state: ThermalState }>;
     getTemperature(): Promise<{ batteryC: number | null }>;
@@ -79,14 +78,14 @@ function getThermalPlugin(): ThermalStateNativePlugin | null {
     return thermalPlugin;
 }
 
-/** Sottoscrive un evento del plugin termico senza perdere l'unsubscribe.
+/** Subscribes to a thermal plugin event without losing the unsubscribe.
  *
- *  ⚠️ `addListener` è asincrona e l'unsubscribe è sincrono: chi si disiscrive
- *  PRIMA che la registrazione risolva trovava `handle` ancora null, la sua
- *  chiamata non faceva nulla, e il listener restava agganciato per sempre —
- *  continuando a spingere eventi dentro un consumatore già smontato. Il flag
- *  `cancelled` chiude il buco in entrambi i versi: se l'annullamento arriva
- *  prima, è la registrazione stessa a rimuoversi appena atterra. */
+ *  ⚠️ `addListener` is asynchronous and the unsubscribe is synchronous: whoever
+ *  unsubscribed BEFORE the registration resolved found `handle` still null, their
+ *  call did nothing, and the listener stayed attached forever — still pushing
+ *  events into an already unmounted consumer. The `cancelled` flag closes the gap
+ *  in both directions: if the cancellation arrives first, the registration itself
+ *  removes it as soon as it lands. */
 function subscribeThermalEvent<T>(event: string, cb: (data: T) => void): Unsubscribe {
     const plugin = getThermalPlugin();
     if (!plugin) return () => {};
@@ -141,13 +140,13 @@ export async function readBatteryStatus(): Promise<BatteryStatus | null> {
 }
 
 // ── Preferences (Capacitor Preferences → localStorage fallback) ──────────────
-// ⚠️ Su NATIVO il fallback a localStorage non è equivalente: le Preferences sono
-// KV nativo durevole, localStorage vive nella WebView e sparisce con una pulizia
-// cache. Un fallimento silenzioso qui rende i progressi del giocatore NON
-// durevoli senza che nulla, a schermo o in console, lo dica. Il fallback resta
-// (meglio salvare da qualche parte che non salvare), ma smette di essere muto:
-// una volta sola per operazione, così un errore ricorrente non diventa una
-// tempesta di telemetria.
+// ⚠️ On NATIVE the localStorage fallback is not equivalent: Preferences are
+// durable native KV, localStorage lives in the WebView and disappears with a
+// cache clear. A silent failure here makes the player's progress NOT durable
+// without anything, on screen or in the console, saying so. The fallback stays
+// (better to save somewhere than not to save), but it stops being silent: once
+// per operation, so that a recurring error does not turn into a telemetry
+// storm.
 const prefsFallbackReported = new Set<string>();
 
 function reportPrefsFallback(op: string, err: unknown): void {
@@ -227,8 +226,8 @@ export async function readThermalState(): Promise<ThermalState> {
             const { state } = await plugin.getState();
             return state;
         } catch (err) {
-            // Un fallback muto a 'nominal' legge come "device freddo" e disarma
-            // il governor termico: è esattamente il caso in cui il silenzio costa.
+            // A silent fallback to 'nominal' reads as "cold device" and disarms
+            // the thermal governor: it is exactly the case where silence costs.
             reportNativeError('native.thermal', err, { op: 'getState' });
         }
     }
@@ -240,10 +239,10 @@ export function onThermalStateChange(cb: (state: ThermalState) => void): Unsubsc
 }
 
 // ── Device temperature (same ThermalState plugin) ─────────────────────────────
-// Android: temperatura BATTERIA in °C (sticky ACTION_BATTERY_CHANGED — l'unica
-// temperatura che Android espone a un'app non privilegiata; CPU/skin richiedono
-// privilegi device-owner). iOS: platform-honest → null (nessuna API pubblica;
-// il segnale termico iOS resta readThermalState). Web: null.
+// Android: BATTERY temperature in °C (sticky ACTION_BATTERY_CHANGED — the only
+// temperature Android exposes to a non-privileged app; CPU/skin require
+// device-owner privileges). iOS: platform-honest → null (no public API; the iOS
+// thermal signal remains readThermalState). Web: null.
 export async function readDeviceTemperature(): Promise<number | null> {
     const plugin = getThermalPlugin();
     if (plugin) {
@@ -258,29 +257,29 @@ export async function readDeviceTemperature(): Promise<number | null> {
 }
 
 // ── Thermal headroom (same ThermalState plugin) ───────────────────────────────
-// Android API 30+: 0..1 = frazione del budget termico consumata (1.0 = throttling
-// severo), opzionalmente PREVISTA a `forecastSeconds` nel futuro. È l'unico
-// segnale termico continuo e anticipatorio: `readThermalState` è a gradini e
-// arriva tardi (misurato su A25: MODERATE dopo 16 min di gioco, SEVERE dopo 22).
+// Android API 30+: 0..1 = fraction of the thermal budget consumed (1.0 = severe
+// throttling), optionally FORECAST `forecastSeconds` into the future. It is the
+// only continuous, anticipatory thermal signal: `readThermalState` is stepped and
+// arrives late (measured on a Galaxy A25: MODERATE after 16 min of play, SEVERE after 22).
 //
-// null = "non lo so", MAI 0 — API < 30, iOS (nessun equivalente Apple), web,
-// oppure NaN restituito dall'OS quando lo si interroga troppo spesso (contratto:
-// non più di una volta ogni ~10s). Uno zero verrebbe letto come "device freddo".
-/** Intervallo minimo fra due interrogazioni dell'headroom, dal contratto Android
- *  (`PowerManager.getThermalHeadroom`): sotto i ~10s l'OS restituisce NaN. Un po'
- *  di margine sopra il minimo documentato, perché la finestra è misurata dall'OS
- *  e non dal nostro orologio. */
+// null = "I don't know", NEVER 0 — API < 30, iOS (no Apple equivalent), web, or
+// NaN returned by the OS when queried too often (contract: no more than once
+// every ~10s). A zero would be read as "cold device".
+/** Minimum interval between two headroom queries, from the Android contract
+ *  (`PowerManager.getThermalHeadroom`): below ~10s the OS returns NaN. A little
+ *  margin above the documented minimum, because the window is measured by the OS
+ *  and not by our clock. */
 const HEADROOM_MIN_INTERVAL_MS = 11_000;
 
 let headroomLast: { at: number; value: number | null; forecast: number } | null = null;
 
 export async function readThermalHeadroom(forecastSeconds = 0): Promise<number | null> {
-    // ⚠️ Il rate-limit non è un'ottimizzazione: senza, un chiamante troppo
-    // frequente riceve NaN dall'OS, che qui diventa null — cioè "segnale non
-    // disponibile". Il governor lo legge come "non lo so" e si disarma, e il
-    // sintomo (nessuna mitigazione termica) non somiglia affatto alla causa
-    // (polling troppo fitto). Restituire l'ULTIMO valore buono dentro la
-    // finestra è più onesto che restituire un null autoinflitto.
+    // ⚠️ The rate limit is not an optimization: without it, a caller that polls
+    // too frequently gets NaN from the OS, which becomes null here — i.e. "signal
+    // unavailable". The governor reads that as "I don't know" and disarms itself,
+    // and the symptom (no thermal mitigation) looks nothing like the cause
+    // (polling too tightly). Returning the LAST good value inside the window is
+    // more honest than returning a self-inflicted null.
     const now = Date.now();
     if (headroomLast?.forecast === forecastSeconds
         && now - headroomLast.at < HEADROOM_MIN_INTERVAL_MS) {
