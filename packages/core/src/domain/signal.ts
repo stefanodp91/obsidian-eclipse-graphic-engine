@@ -1,4 +1,4 @@
-// Zero-overhead pub/sub. Generalization of the game's `runtimeRefs` pattern:
+// Zero-overhead pub/sub. Generalization of the consumer-side `runtimeRefs` pattern:
 // the engine needs only `tier` + `diagnostics` as observables, so it ships its
 // own ~40-LOC signal instead of depending on Zustand (avoids version coupling).
 // The host adapter bridges signal -> Zustand for its own React UI.

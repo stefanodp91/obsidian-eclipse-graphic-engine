@@ -1,8 +1,8 @@
 // RealismUv — livery-atlas UV helpers (R5 canonical DynamicTexture-atlas
-// pattern) + R4 concentric-eye helpers. World/oggetto-AGNOSTICI — promossi da
-// models/world3/_marine/uv.ts (pulizie G, owner 2026-07-11): il pattern serve
-// qualunque creatura con livrea (nati per creature marine, usati anche
-// da serpenti/cobra-class).
+// pattern) + R4 concentric-eye helpers. World/object-AGNOSTIC — promoted from
+// models/world3/_marine/uv.ts (2026-07-11): the pattern serves
+// any creature with a livery (born for marine creatures, also used by
+// snake/cobra-class models).
 import { Color3, Mesh, MeshBuilder, Vector3, VertexBuffer } from '@babylonjs/core';
 import type { Scene } from '@babylonjs/core';
 

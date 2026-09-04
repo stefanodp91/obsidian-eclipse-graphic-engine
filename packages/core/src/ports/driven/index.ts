@@ -6,7 +6,7 @@ import type { QualityPreset, Unsubscribe } from '../../domain';
 
 /** Frame-time / vsync source. `fixedDeltaMs`, when set, overrides the real delta
  *  for deterministic lockstep (dev replay / regression harness) — this is the
- *  engine-side home of the game's current `runtimeRefs.fixedDtMs` hook. */
+ *  engine-side home of a consumer-side fixed-timestep hook. */
 export interface Clock {
   deltaMs(): number;
   fixedDeltaMs: number | null;
@@ -97,12 +97,12 @@ export interface NativeServices {
   readThermalState(): Promise<ThermalState>;
   /** Subscribe to thermal-level changes; returns an unsubscribe. No-op off native. */
   onThermalStateChange(fn: (state: ThermalState) => void): Unsubscribe;
-  /** Budget termico consumato, 0..1 (1 = throttling severo), opzionalmente
-   *  previsto a `forecastSeconds`. **null = segnale non disponibile**, mai 0:
-   *  Android < API 30, iOS (Apple non espone alcun equivalente), web, o NaN
-   *  restituito dall'OS su interrogazioni troppo ravvicinate (~10s minimi).
-   *  È l'unico segnale termico continuo e anticipatorio: `readThermalState` è
-   *  a gradini e arriva quando il device sta già limitando. */
+  /** Thermal budget consumed, 0..1 (1 = severe throttling), optionally forecast
+   *  at `forecastSeconds`. **null = signal unavailable**, never 0: Android < API
+   *  30, iOS (Apple exposes no equivalent), web, or NaN returned by the OS on
+   *  queries that are too close together (~10s minimum). It is the only
+   *  continuous, anticipatory thermal signal: `readThermalState` is stepped and
+   *  arrives when the device is already throttling. */
   readThermalHeadroom(forecastSeconds?: number): Promise<number | null>;
   /** Hold/release a screen wake lock (native KeepAwake → web WakeLock fallback). */
   requestWakeLock(): Promise<void>;

@@ -4,10 +4,10 @@
 // extra: the menu is already a representative 3D workload the user sees
 // anyway, so the probe is fully transparent UX-wise.
 //
-// Sprint 1 of the layered perf architecture (see GDD plan). Cap = upper
-// bound del tier risolto a boot (M-1 consuma il tierCap persistito come
-// input auto-detect). Per-level warmup probe raffina la scala applicata al
-// mount successivo (ratchet down-only) — nessun DRS runtime.
+// First stage of the layered perf architecture. Cap = upper bound of the tier
+// resolved at boot (later stages consume the persisted tierCap as an auto-detect
+// input). The per-level warmup probe refines the scale applied at the
+// next mount (ratchet down-only) — no runtime DRS.
 
 import type { Scene } from '@babylonjs/core';
 import { engineHandles } from './engineHandles';
@@ -244,17 +244,18 @@ export async function runDeviceProbe(scene: Scene, displayHzOverride?: number): 
     let prev = performance.now();
 
     // ⚠️ Il probe si risolve su un evento di RENDER, e il render può fermarsi:
-    // basta che l'utente mandi l'app in background, o che il render-gate chiuda
-    // il loop, mentre le prime frame vengono contate. Senza scadenza la promise
-    // non si risolve MAI, l'observer resta agganciato, e il boot — che la attende —
-    // resta appeso su una schermata di caricamento senza un errore da nessuna
-    // parte. È il tipo di blocco che non si riproduce in laboratorio e arriva
-    // solo dai device veri.
+    // it is enough for the user to send the app to the background, or for the
+    // render gate to close the loop, while the first frames are being counted.
+    // With no deadline the promise NEVER resolves, the observer stays attached,
+    // and boot — which awaits it — hangs on a loading screen with no error
+    // anywhere. It is the kind of stall that does not reproduce on a development machine and
+    // only comes from real devices.
     //
-    // La scadenza è generosa (le frame servono ~1s a 60Hz): chi la tocca è un
-    // render fermo, non un device lento. Alla scadenza si misura con quello che
-    // si è raccolto, e se non basta si ricade sul target — cioè "nessun cap",
-    // che è il default prudente: il probe per-livello raffinerà comunque.
+    // The deadline is generous (the frames take ~1s at 60Hz): whatever hits it is
+    // a stopped render, not a slow device. On expiry it measures with whatever was
+    // collected, and if that is not enough it falls back to the target — i.e. "no
+    // cap", which is the prudent default: the per-level probe will refine it
+    // anyway.
     const PROBE_DEADLINE_MS = 8_000;
 
     await new Promise<void>((resolve) => {
@@ -288,10 +289,10 @@ export async function runDeviceProbe(scene: Scene, displayHzOverride?: number): 
     });
 
     // Un campione scarso è peggio di nessun campione: la mediana di 3 frame
-    // raccolte mentre l'app andava in background misura lo stallo, non il device,
-    // e verrebbe PERSISTITA come cap per tutta la versione. Sotto un terzo delle
-    // frame attese si ricade sul target (= nessun cap) e si lascia il verdetto al
-    // probe per-livello, che misura il carico vero.
+    // collected while the app went to the background measures the stall, not the
+    // device, and would be PERSISTED as a cap for the whole version. Below a third
+    // of the expected frames it falls back to the target (= no cap) and leaves the
+    // verdict to the per-level probe, which measures the real load.
     const MIN_USABLE_FRAMES = Math.ceil(BOOT_PROBE_MEASURE_FRAMES / 3);
     const usable = frameTimes.length >= MIN_USABLE_FRAMES;
     const sorted = usable ? [...frameTimes].sort((a, b) => a - b) : [];
@@ -308,13 +309,13 @@ export async function runDeviceProbe(scene: Scene, displayHzOverride?: number): 
         displayHz,
         targetFps,
     };
-    // Si persiste SOLO una misura valida. Un cap scritto da un campione
-    // insufficiente sarebbe indistinguibile da uno buono al boot successivo
-    // (`getDeviceCap` guarda la versione, non la qualità del campione) e
-    // resterebbe inchiodato lì per tutta la versione, senza mai riprovare.
-    // Non scrivendo nulla, il prossimo avvio ri-misura.
+    // ONLY a valid measurement is persisted. A cap written from an insufficient
+    // sample would be indistinguishable from a good one at the next boot
+    // (`getDeviceCap` looks at the version, not at the sample's quality) and would
+    // stay nailed there for the whole version, never retrying. By writing nothing,
+    // the next start re-measures.
     if (usable) saveDeviceCap(cap);
     // eslint-disable-next-line no-console
-    console.warn(`[deviceProbe] frames=${frameTimes.length} medianMs=${medianMs.toFixed(2)} targetMs=${targetMs.toFixed(2)} scaleCap=${scaleCap.toFixed(3)} tier=${tierCap}${usable ? '' : ' (campione insufficiente — non persistito)'}`);
+    console.warn(`[deviceProbe] frames=${frameTimes.length} medianMs=${medianMs.toFixed(2)} targetMs=${targetMs.toFixed(2)} scaleCap=${scaleCap.toFixed(3)} tier=${tierCap}${usable ? '' : ' (insufficient sample — not persisted)'}`);
     return cap;
 }

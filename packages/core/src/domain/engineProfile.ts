@@ -1,6 +1,6 @@
 // Provider-injection pattern for engine-pure quality profile access.
 // Game-side boot calls configureEngineProfileProvider(getActiveQualityProfile)
-// once, wiring the game's full QualityProfile (superset of EngineQualityProfile)
+// once, wiring a consumer's full QualityProfile (superset of EngineQualityProfile)
 // to the engine without importing game modules here.
 
 import type { QualityPreset, EngineQualityProfile } from './qualityTypes';

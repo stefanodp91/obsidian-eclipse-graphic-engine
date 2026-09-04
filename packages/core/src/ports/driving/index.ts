@@ -27,7 +27,7 @@ export interface GraphicEngine {
   };
   readonly quality: {
     get(): QualityPreset;
-    /** Reference impl today: the game's `applyQualityChange` orchestrator
+    /** Reference impl today: a consumer-side `applyQualityChange` orchestrator
      *  (purge caches -> reset probe bookkeeping -> re-apply profile -> set
      *  physics step -> rebuild). Hot-applied; safe in the Halted phase.
      *  Returns true if applied, false if skipped (e.g. not in the menu phase). */

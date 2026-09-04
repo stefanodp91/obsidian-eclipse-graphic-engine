@@ -1,9 +1,9 @@
-// Prototipo cel-shading — superficie pubblica.
+// Cel-shading prototype — public surface.
 //
-// Tutto quello che sta qui sotto è PROTOTIPO: vive nel motore perché è
-// brand-agnostico e perché entrambi gli harness (gioco e storybook) lo devono
-// importare, non perché sia già una feature del motore. Nessun consumatore di
-// produzione lo referenzia.
+// Everything below here is PROTOTYPE: it lives in the engine because it is
+// brand-agnostic and because both the sample application and external harnesses have to import
+// it, not because it is already an engine feature. No production consumer
+// references it.
 
 export {
     CEL_FRAGMENT_UNIFORMS, CEL_FRAGMENT_FUNCTIONS, CEL_FRAGMENT_BODY,
@@ -23,26 +23,26 @@ export type { CelMaterialOptions, CelMaterialHandle } from './CelMaterial';
 export { excludeFromCelOutline, markCelOutlineEssential, markCelOutlineNoHullFallback, setCelOutlineHullMode, attachCelOutline, DEFAULT_CEL_OUTLINE } from './CelOutlinePostProcess';
 export type { CelOutlineOptions, CelOutlineHandle, CelOutlineDebug } from './CelOutlinePostProcess';
 
-// `bakeCelHullIntoMesh` e `celBodyBoxOf` viaggiano insieme: la prima distrugge
-// la misura del modello, la seconda la conserva. Esporre solo la prima
-// significherebbe offrire il difetto senza la sua cura.
+// `bakeCelHullIntoMesh` and `celBodyBoxOf` travel together: the first destroys
+// the model's measurement, the second preserves it. Exporting only the first
+// would mean offering the defect without its cure.
 export { createCelHullFactory, DEFAULT_CEL_HULL, bakeCelHullIntoMesh, celBodyBoxOf } from './celHull';
 export type { CelHullOptions, CelHullHandle } from './celHull';
 
-/** Le due tecniche di contorno.
+/** The two outline techniques.
  *
- *  SCELTA OWNER 2026-08-04: `post`. Il guscio resta nel codice come termine di
- *  paragone del lab, non come opzione del prototipo — si strappa sulle mesh a
- *  spigoli duri (normali sdoppiate ⇒ la copia gonfiata si apre) e quella è
- *  esattamente la geometria che il cel-shading richiede, quindi il difetto si
- *  presenterebbe ovunque. In più il post-process è l'unico dei due che disegna
- *  anche gli spigoli INTERNI.
+ *  DEFAULT CHOSEN 2026-08-04: `post`. The hull stays in the code as a point of comparison
+ *  for tuning harnesses, not as an option of the prototype — it tears on meshes
+ *  with hard edges (split normals ⇒ the inflated copy splits open) and that is
+ *  exactly the geometry cel-shading calls for, so the defect would show up
+ *  everywhere. On top of that, the post-process is the only one of the two that
+ *  also draws INTERNAL edges.
  *
- *  `both` esiste solo per il lab: serviva a vedere se sommate davano qualcosa
- *  che nessuna delle due dà da sola. Non è una configurazione da spedire. */
+ *  `both` exists for tuning harnesses: it is there to see whether summing them gave
+ *  something neither gives on its own. It is not a configuration to ship. */
 export type CelOutlineMode = 'none' | 'post' | 'hull' | 'both';
 
-/** Il modo scelto dall'owner. Il prototipo parte da qui. */
+/** The default mode. The prototype starts from here. */
 export const CEL_OUTLINE_CHOICE: CelOutlineMode = 'post';
 
 export {

@@ -39,11 +39,11 @@ export function applyEngineProfile(
     // Set maxFPS well above any display (240) so vsync via rAF is the natural
     // cap — avoids Babylon's frame-throttle boundary races.
     //
-    // Questo è il valore di BOOT, non la policy: chi governa davvero il frame
-    // rate a runtime è il gioco, con due leve che NON passano da qui —
-    // attachRefreshPreference (pin nativo del pannello su Android, maxFPS su
-    // iOS/web) e il renderFpsCap per-fase applicato a frame-skip dal
-    // RenderLoopGate. Non aggiungere un terzo owner di engine.maxFPS.
+    // This is the BOOT value, not the policy: what really governs the frame rate
+    // at runtime is the consuming application, with two levers that do NOT go through here —
+    // attachRefreshPreference (native panel pin on Android, maxFPS on iOS/web)
+    // and the per-phase renderFpsCap applied as frame-skip by the RenderLoopGate.
+    // Do not add a third owner of engine.maxFPS.
     engine.maxFPS = 240;
     void measureRefreshRate().then((hz) => {
         console.info(`[applyEngineProfile] display refresh measured: ${hz} Hz (engine.maxFPS=240, vsync gates)`);

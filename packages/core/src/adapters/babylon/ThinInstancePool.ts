@@ -45,15 +45,15 @@ export interface ThinInstancePoolOptions {
      *  size; growing it later requires a copy + GPU re-upload, which we
      *  forbid in the scaffold — set conservatively. */
     capacity: number;
-    /** Il pool POSSIEDE il materiale del master e lo distrugge al dispose.
+    /** The pool OWNS the master's material and destroys it on dispose.
      *
-     *  Default `false`, ed è il default sicuro: un materiale che arriva dalla
-     *  MaterialLibrary è CONDIVISO e ref-counted, quindi distruggerlo qui lo
-     *  toglie da sotto i piedi a tutti gli altri utenti — e il ref-count resta
-     *  a indicare un materiale vivo che non esiste più. Il sintomo (superfici
-     *  nere altrove nella scena) non ha alcun rapporto visibile con il pool
-     *  disposto. Chi costruisce un materiale dedicato dentro `createMaster`
-     *  mette `true` e se ne assume la proprietà. */
+     *  Default `false`, and that is the safe default: a material coming from the
+     *  MaterialLibrary is SHARED and ref-counted, so destroying it here pulls it
+     *  out from under every other user — and the ref count is left pointing at a
+     *  live material that no longer exists. The symptom (black surfaces elsewhere
+     *  in the scene) bears no visible relation to the disposed pool. Whoever
+     *  builds a dedicated material inside `createMaster` sets `true` and takes
+     *  ownership of it. */
     ownsMaterial?: boolean;
 }
 

@@ -1,34 +1,34 @@
-// Grade cromatico del prototipo cel.
+// Color grade of the cel prototype.
 //
-// Il cel-shading dà le bande, ma non dà da solo il COLORE di Borderlands: quello
-// nasce da un grade spinto — saturazione alta, contrasto alto, neri chiusi. Con
-// le bande e un grade neutro il risultato legge come un cartone animato
-// televisivo, non come un fumetto stampato.
+// Cel-shading gives the bands, but on its own it does not give Borderlands' COLOR:
+// that comes from a pushed grade — high saturation, high contrast, closed blacks.
+// With the bands and a neutral grade the result reads like a TV cartoon, not like
+// a printed comic.
 //
-// Passa dalla image-processing configuration DI SCENA, non da una pipeline: è un
-// uniform analitico applicato in shader dai material forward, quindi nessun
-// render-target e nessun pass a schermo intero. È lo stesso path che il gioco
-// già usa per il grade per-mondo (applySceneGrade in setupPostProcessing).
+// It goes through the SCENE's image-processing configuration, not through a
+// pipeline: it is an analytic uniform applied in-shader by the forward materials,
+// so no render target and no fullscreen pass. It is the same path a consumer
+// already uses for the per-world grade (applySceneGrade in setupPostProcessing).
 //
-// Attenzione all'ordine con l'edge-detect: il contorno è un post-process e viene
-// DOPO, quindi il tratto d'inchiostro non viene toccato dal grade. È il
-// comportamento voluto — un contorno che cambia colore con la saturazione della
-// scena smetterebbe di leggere come inchiostro.
+// Mind the ordering with the edge-detect: the outline is a post-process and comes
+// AFTER, so the ink stroke is not touched by the grade. That is the intended
+// behavior — an outline that changed color with the scene's saturation would stop
+// reading as ink.
 
 import type { Nullable, Scene } from '@babylonjs/core';
 import { ColorCurves, ImageProcessingConfiguration } from '@babylonjs/core';
 
 export interface CelGradeSpec {
-    /** -100..100. Il valore che porta il look verso la stampa satura. */
+    /** -100..100. The value that pushes the look towards saturated print. */
     saturation: number;
-    /** 0..360, rotazione di tinta globale. */
+    /** 0..360, global hue rotation. */
     hue: number;
-    /** 0..1, quanto pesano le curve. 0 = curve spente. */
+    /** 0..1, how much the curves weigh. 0 = curves off. */
     density: number;
     contrast: number;
     exposure: number;
-    /** Tonemap ACES. Spento di default: comprime le alte luci e quindi
-     *  ammorbidisce proprio gli stacchi fra bande che il cel deve tenere netti. */
+    /** ACES tonemap. Off by default: it compresses the highlights and therefore
+     *  softens exactly the steps between bands that cel has to keep sharp. */
     toneMapping: boolean;
 }
 
@@ -47,9 +47,9 @@ export interface CelGradeHandle {
     dispose(): void;
 }
 
-/** Applica il grade alla scena e ritorna la maniglia per ritararlo a caldo.
- *  `dispose` riporta la scena a neutro: la Scene sopravvive ai cambi di livello,
- *  quindi un grade non ripulito si porterebbe dietro anche fuori dal prototipo. */
+/** Applies the grade to the scene and returns the handle for retuning it live.
+ *  `dispose` returns the scene to neutral: the Scene survives level changes, so an
+ *  uncleaned grade would carry over beyond the prototype as well. */
 export function applyCelGrade(
     scene: Scene,
     overrides: Partial<CelGradeSpec> = {},
@@ -70,7 +70,7 @@ export function applyCelGrade(
     const push = (): void => {
         curves.globalSaturation = spec.saturation;
         curves.globalHue = spec.hue;
-        curves.globalDensity = spec.density * 100;   // ColorCurves vuole 0..100
+        curves.globalDensity = spec.density * 100;   // ColorCurves wants 0..100
         ip.colorCurves = curves;
         ip.colorCurvesEnabled = spec.density > 0;
         ip.contrast = spec.contrast;

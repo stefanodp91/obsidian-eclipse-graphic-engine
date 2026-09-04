@@ -21,34 +21,34 @@ for (const plugin of contract.plugins) {
     const androidRel = `android/src/main/java/com/obsidian/eclipse/capacitorplugins/${plugin.className}.java`;
     const iosRel = `ios/Sources/ObsidianEclipseCapacitorPlugins/${plugin.className}.swift`;
     for (const path of [androidRel, iosRel]) {
-        if (!existsSync(join(root, path))) failures.push(`${plugin.name}: file mancante ${path}`);
+        if (!existsSync(join(root, path))) failures.push(`${plugin.name}: missing file ${path}`);
     }
     if (!existsSync(join(root, androidRel)) || !existsSync(join(root, iosRel))) continue;
 
     const android = read(androidRel);
     const ios = read(iosRel);
     if (!android.includes(`@CapacitorPlugin(name = "${plugin.name}")`)) {
-        failures.push(`${plugin.name}: annotazione Android non allineata`);
+        failures.push(`${plugin.name}: Android annotation not aligned`);
     }
     if (!ios.includes(`public let jsName = "${plugin.name}"`)) {
-        failures.push(`${plugin.name}: jsName iOS non allineato`);
+        failures.push(`${plugin.name}: iOS jsName not aligned`);
     }
     if (!facade.includes(`registerPlugin<`) || !facade.includes(`>('${plugin.name}')`)) {
-        failures.push(`${plugin.name}: registerPlugin assente dal facade TypeScript`);
+        failures.push(`${plugin.name}: registerPlugin missing from the TypeScript facade`);
     }
 
     const androidMethods = [...android.matchAll(/@PluginMethod\s+public void (\w+)\s*\(/g)].map((m) => m[1]);
     const iosMethods = [...ios.matchAll(/CAPPluginMethod\(name: "([^"]+)"/g)].map((m) => m[1]);
     if (!sameMembers(androidMethods, plugin.methods)) {
-        failures.push(`${plugin.name}: metodi Android ${androidMethods.sort().join(', ')} != contratto ${plugin.methods.join(', ')}`);
+        failures.push(`${plugin.name}: Android methods ${androidMethods.sort().join(', ')} != contract ${plugin.methods.join(', ')}`);
     }
     if (!sameMembers(iosMethods, plugin.methods)) {
-        failures.push(`${plugin.name}: metodi iOS ${iosMethods.sort().join(', ')} != contratto ${plugin.methods.join(', ')}`);
+        failures.push(`${plugin.name}: iOS methods ${iosMethods.sort().join(', ')} != contract ${plugin.methods.join(', ')}`);
     }
 }
 
 for (const required of ['dist/', 'android/src/main/', 'ios/Sources', 'Package.swift', 'ObsidianEclipseCapacitorPlugins.podspec']) {
-    if (!pkg.files?.includes(required)) failures.push(`package.json files non include ${required}`);
+    if (!pkg.files?.includes(required)) failures.push(`package.json files does not include ${required}`);
 }
 
 if (failures.length > 0) {
@@ -56,4 +56,4 @@ if (failures.length > 0) {
     process.exit(1);
 }
 
-console.log(`✓ Contratto plugin nativi: ${contract.plugins.length} plugin, Android/iOS/TypeScript allineati.`);
+console.log(`✓ Native plugin contract: ${contract.plugins.length} plugins, Android/iOS/TypeScript aligned.`);

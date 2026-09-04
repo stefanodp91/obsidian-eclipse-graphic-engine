@@ -75,7 +75,7 @@ export function applyBakedCavityAO(mesh: AbstractMesh, strength: number): void {
 
 /** Occlusion multiplier for one vertex: a normal pointing back toward the mesh
  *  centroid sits in a concave pocket → darken it. No rays. Meaningful only on
- *  roughly-convex, compact masters (a long track slab has no useful centroid). */
+ *  roughly-convex, compact masters (a long ground slab has no useful centroid). */
 function cavityFactor(
     normals: FloatArray, positions: FloatArray, v: number,
     cx: number, cy: number, cz: number, strength: number,
@@ -101,21 +101,21 @@ export function applyBakedSunLight(
     ambientFloor: number = DEFAULT_AMBIENT_FLOOR,
     cavityStrength: number = 0,
 ): void {
-    // Sotto cel il bake va SALTATO, non attenuato.
+    // Under cel the bake has to be SKIPPED, not attenuated.
     //
-    // Questa funzione moltiplica i vertex color per un termine di luce
-    // precalcolato: nel modello legacy è un guadagno gratuito (chiaroscuro senza
-    // costo per-fragment), ma sotto cel diventa una SECONDA illuminazione dentro
-    // l'albedo. Due conseguenze, entrambe viste a schermo su una scena ricca di vegetazione:
+    // This function multiplies the vertex colors by a precomputed light term: in
+    // the legacy model that is a free win (shading with no per-fragment cost), but
+    // under cel it becomes a SECOND lighting pass inside the albedo. Two
+    // consequences, both seen on screen in a vegetation-heavy scene:
     //
-    //   · il gradiente bakeato attraversa le bande e le sporca — è esattamente
-    //     il chiaroscuro continuo che la quantizzazione esiste per togliere;
-    //   · l'albedo esce pre-scurito, e il modello legacy lo compensava col floor
-    //     emissivo del materiale. Tolto quello (col cel laverebbe le bande),
-    //     resta solo lo scurimento e la scena affonda.
+    //   · the bands fall on an albedo that is already shaded, so what survives is
+    //     the continuous shading that quantization exists to remove;
+    //   · what compensated for the darkening was the material's emissive floor.
+    //     With that removed (under cel it would wash the bands out), only the
+    //     darkening is left and the scene sinks.
     //
-    // Saltandolo, i vertex color tornano ad essere albedo PIATTO — che è la
-    // grammatica del cel, la stessa che `paint()` produce negli asset nuovi.
+    // By skipping it, the vertex colors go back to being FLAT albedo — which is
+    // cel's grammar, the same one `paint()` produces in the new assets.
     if (getDecorShadingMode() === 'cel') return;
 
     const normals = mesh.getVerticesData(VertexBuffer.NormalKind);

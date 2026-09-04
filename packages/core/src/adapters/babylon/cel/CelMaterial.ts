@@ -1,19 +1,18 @@
-// CelMaterial — il materiale del prototipo cel-shading.
+// CelMaterial — the cel-shading prototype's material.
 //
-// PERCHÉ ShaderMaterial E NON UN MaterialPlugin: il prototipo deve far
-// GIUDICARE un look, quindi serve controllo totale su ogni termine e la
-// possibilità di ritarare tutto a runtime. Un plugin su StandardMaterial
-// erediterebbe il modello di illuminazione di Babylon e con esso i vincoli da
-// cui stiamo cercando di uscire.
+// WHY ShaderMaterial AND NOT A MaterialPlugin: the prototype has to get a look
+// JUDGED, so it needs total control over every term and the ability to retune
+// everything at runtime. A plugin on StandardMaterial would inherit Babylon's
+// lighting model and with it the constraints we are trying to get out of.
 //
-// La contropartita è che questo materiale NON parla con il sistema di luci di
-// Babylon: chiave, fill e nebbia sono uniform esplicite. Per un look cel non è
-// una perdita — una chiave dura più un riempimento piatto è esattamente il
-// modello di illuminazione che serve, e averlo esplicito lo rende tarabile.
+// The trade-off is that this material does NOT talk to Babylon's light system:
+// key, fill and fog are explicit uniforms. For a cel look that is no loss — a
+// hard key plus a flat fill is exactly the lighting model needed, and having it
+// explicit makes it tunable.
 //
-// La matematica non vive qui ma in celShading.glsl.ts, così la migrazione al
-// gioco (che passerà per un MaterialPluginBase sulle spec esistenti) riusa le
-// stesse funzioni invece di riscriverle e divergere.
+// The math does not live here but in celShading.glsl.ts, so that the migration to
+// consumers (which will go through a MaterialPluginBase over the existing specs)
+// reuses the same functions instead of rewriting them and diverging.
 
 import type { Scene, Nullable, Observer } from '@babylonjs/core';
 import { Color3, ShaderMaterial, Vector3 } from '@babylonjs/core';
@@ -24,44 +23,44 @@ import { getCelRamp, DEFAULT_CEL_RAMP, type CelRampSpec } from './celRamp';
 import { getCelHatch, NO_HATCH, type CelHatchSpec } from './celHatching';
 
 export interface CelMaterialOptions {
-    /** Albedo. Moltiplicato per il vertex color quando `useVertexColor`. */
+    /** Albedo. Multiplied by the vertex color when `useVertexColor`. */
     baseColor: Color3;
     ramp: CelRampSpec;
-    /** Direzione di PROPAGAZIONE della chiave (dalla sorgente verso la scena). */
+    /** The key's PROPAGATION direction (from the source towards the scene). */
     lightDirection: Vector3;
     lightColor: Color3;
-    /** Fill emisferico: cielo sopra, rimbalzo da terra sotto. */
+    /** Hemispheric fill: sky above, ground bounce below. */
     ambientSky: Color3;
     ambientGround: Color3;
-    /** Colore dell'inchiostro — rim interno e (per coerenza) contorni. */
+    /** Ink color — inner rim and (for consistency) outlines. */
     inkColor: Color3;
-    /** 0 = nessun rim d'inchiostro. */
+    /** 0 = no ink rim. */
     rimStrength: number;
-    /** Ampiezza del rim in frazione di fresnel (0..1). */
+    /** Rim width as a fraction of fresnel (0..1). */
     rimWidth: number;
     specColor: Color3;
-    /** 0 = nessuna macchia speculare. */
+    /** 0 = no specular blob. */
     specStrength: number;
     specPower: number;
     hatch: CelHatchSpec;
-    /** 0 = nessun tratteggio. */
+    /** 0 = no hatching. */
     hatchStrength: number;
-    /** Lato della tile di tratteggio in pixel di schermo. */
+    /** Side of the hatching tile, in screen pixels. */
     hatchScale: number;
     fogColor: Color3;
-    /** 0 = nessuna nebbia. */
+    /** 0 = no fog. */
     fogDensity: number;
     alpha: number;
     useVertexColor: boolean;
-    /** Abilita l'attributo `uv` (oggi nessun termine lo consuma: il tratteggio è
-     *  screen-space). Da accendere solo su mesh che hanno davvero le UV. */
+    /** Enables the `uv` attribute (no term consumes it today: the hatching is
+     *  screen-space). Switch it on only on meshes that really have UVs. */
     useUv: boolean;
     backFaceCulling: boolean;
 }
 
-/** Default tarati su una chiave radente da sinistra-alto, cioè lo stesso
- *  impianto di luce del gioco (SUN_LIGHT_DIR): il confronto fra prototipo e
- *  stato attuale non deve misurare anche una differenza di posizione del sole. */
+/** Defaults tuned on a grazing key from the upper left, i.e. the same lighting
+ *  rig consumers use (SUN_LIGHT_DIR): the comparison between prototype and current
+ *  state must not also be measuring a difference in the sun's position. */
 export const DEFAULT_CEL_OPTIONS: CelMaterialOptions = {
     baseColor: new Color3(0.62, 0.72, 0.38),
     ramp: DEFAULT_CEL_RAMP,
@@ -77,7 +76,7 @@ export const DEFAULT_CEL_OPTIONS: CelMaterialOptions = {
     specPower: 32,
     hatch: NO_HATCH,
     hatchStrength: 0.0,
-    hatchScale: 256,   // = lato della tile: mappatura 1:1, nessuna minificazione
+    hatchScale: 256,   // = the tile's side: 1:1 mapping, no minification
     fogColor: new Color3(0.62, 0.74, 0.86),
     fogDensity: 0.0,
     alpha: 1,
@@ -88,12 +87,12 @@ export const DEFAULT_CEL_OPTIONS: CelMaterialOptions = {
 
 export interface CelMaterialHandle {
     readonly material: ShaderMaterial;
-    /** Ritara un sottoinsieme di assi a runtime. Tutto ciò che NON tocca i
-     *  define (cioè tutto tranne vertex-color e uv) si applica senza
-     *  ricompilare lo shader: è il presupposto del pannello di taratura. */
+    /** Retunes a subset of the axes at runtime. Everything that does NOT touch
+     *  the defines (i.e. everything except vertex-color and uv) applies without
+     *  recompiling the shader: that is the tuning panel's precondition. */
     apply(patch: Partial<CelMaterialOptions>): void;
-    /** Snapshot dei valori correnti — il pannello legge da qui invece di
-     *  tenere uno stato parallelo che può divergere. */
+    /** Snapshot of the current values — the panel reads from here instead of
+     *  keeping a parallel state that can diverge. */
     readonly options: Readonly<CelMaterialOptions>;
     dispose(): void;
 }
@@ -139,9 +138,9 @@ function pushMaterialState(
     }
     if (patch.ramp) {
         material.setTexture('celRampSampler', getCelRamp(scene, opts.ramp));
-        // I gradini viaggiano ANCHE come scalare, non solo cotti nella texture:
-        // il retino deve sapere dove finisce la banda d'ombra, e da una texture
-        // già quantizzata quel confine non è più leggibile.
+        // The steps also travel as a scalar, not just baked into the texture: the
+        // hatching has to know where the shadow band ends, and from an already
+        // quantized texture that boundary is no longer readable.
         material.setFloat('celRampBands', opts.ramp.bands);
     }
     if (patch.hatch) material.setTexture('celHatchSampler', getCelHatch(scene, opts.hatch));
@@ -192,11 +191,11 @@ export function createCelMaterial(
     material.backFaceCulling = opts.backFaceCulling;
     material.alpha = opts.alpha;
 
-    // La posizione camera è l'unica uniform che cambia ogni frame. ShaderMaterial
-    // non la lega da sola sotto un nome custom (legherebbe solo `cameraPosition`),
-    // e il nome custom serve a tenere il chunk GLSL namespaced per la migrazione
-    // al plugin. Un push per frame — costo trascurabile, nessun observer di bind
-    // rientrante.
+    // The camera position is the only uniform that changes every frame.
+    // ShaderMaterial does not bind it by itself under a custom name (it would
+    // only bind `cameraPosition`), and the custom name exists to keep the GLSL
+    // chunk namespaced for the migration to the plugin. One push per frame —
+    // negligible cost, no reentrant bind observer.
     const camObserver: Nullable<Observer<Scene>> = scene.onBeforeRenderObservable.add(() => {
         const cam = scene.activeCamera;
         if (cam) material.setVector3('celCameraPosition', cam.globalPosition);
@@ -208,9 +207,9 @@ export function createCelMaterial(
         pushMaterialState(material, scene, opts, patch);
     };
 
-    // Primo push: TUTTE le uniform. Una uniform mai scritta legge zero, e uno
-    // shader cel con ramp a zero è nero pieno — il tipo di bug che sembra un
-    // errore di matematica e invece è un binding mancante.
+    // First push: ALL the uniforms. A uniform that has never been written reads
+    // zero, and a cel shader with the ramp at zero is solid black — the kind of
+    // bug that looks like a math error and is in fact a missing binding.
     push(DEFAULT_CEL_OPTIONS);
 
     const handle: CelMaterialHandle = {

@@ -1,21 +1,21 @@
-// Tratteggio procedurale — il retino da penna che si sovrappone alle bande scure.
+// Procedural hatching — the pen screen laid over the dark bands.
 //
-// È il termine che di solito manca a chi imita Borderlands: con sole bande +
-// contorno si ottiene un cel-shading pulito da cartone animato. Il tratteggio è
-// ciò che aggiunge il "fatto a mano". Viene campionato in SCREEN SPACE nello
-// shader (vedi celHatch in celShading.glsl.ts): il tratto appartiene alla carta,
-// non alla superficie, ed è proprio questa incoerenza a farlo leggere come
-// disegnato invece che come una texture applicata al modello.
+// It is the term usually missing from anyone imitating Borderlands: with bands +
+// outline alone you get a clean cartoon cel-shading. Hatching is what adds the
+// "hand-made" quality. It is sampled in SCREEN SPACE in the shader (see celHatch
+// in celShading.glsl.ts): the stroke belongs to the paper, not to the surface,
+// and it is precisely that inconsistency that makes it read as drawn rather than
+// as a texture applied to the model.
 
 import type { Scene } from '@babylonjs/core';
 import { DynamicTexture, Texture } from '@babylonjs/core';
 
 export interface CelHatchSpec {
-    /** Numero di tratti per lato della tile. Più alto = retino più fitto. */
+    /** Number of strokes per tile side. Higher = denser screen. */
     density: number;
-    /** Spessore del tratto in pixel di tile. */
+    /** Stroke thickness, in tile pixels. */
     weight: number;
-    /** Secondo set di tratti a 90°, cioè il tratteggio incrociato. */
+    /** A second set of strokes at 90°, i.e. cross-hatching. */
     crossed: boolean;
 }
 
@@ -25,10 +25,9 @@ export const DEFAULT_CEL_HATCH: CelHatchSpec = {
     crossed: false,
 };
 
-/** Tile neutra: bianco pieno = nessun tratteggio. Il sampler nello shader deve
- *  essere SEMPRE legato (un sampler non legato in WebGL è comportamento
- *  indefinito, tipicamente nero), quindi "hatching spento" è questa texture,
- *  non l'assenza di texture. */
+/** Neutral tile: solid white = no hatching. The sampler in the shader must
+ *  ALWAYS be bound (an unbound sampler in WebGL is undefined behavior, typically
+ *  black), so "hatching off" is this texture, not the absence of a texture. */
 export const NO_HATCH: CelHatchSpec = { density: 0, weight: 0, crossed: false };
 
 const HATCH_SIZE = 256;
@@ -39,9 +38,9 @@ function hatchKey(spec: CelHatchSpec): string {
     return `${spec.density}|${spec.weight.toFixed(2)}|${spec.crossed ? 'x' : '-'}`;
 }
 
-/** Disegna un set di linee diagonali a 45°, ripetuto oltre i bordi così la tile
- *  combacia con se stessa (il tratteggio è campionato in wrap: una tile non
- *  ciclica produrrebbe una griglia di cuciture visibili a schermo). */
+/** Draws a set of 45° diagonal lines, repeated past the edges so the tile matches
+ *  itself (the hatching is sampled with wrapping: a non-cyclic tile would produce
+ *  a grid of seams visible on screen). */
 function drawDiagonals(ctx: CanvasRenderingContext2D, spec: CelHatchSpec, mirrored: boolean): void {
     const step = HATCH_SIZE / spec.density;
     ctx.save();
@@ -52,8 +51,8 @@ function drawDiagonals(ctx: CanvasRenderingContext2D, spec: CelHatchSpec, mirror
     ctx.lineWidth = spec.weight;
     ctx.lineCap = 'butt';
     ctx.strokeStyle = '#000000';
-    // Da -HATCH_SIZE a +2*HATCH_SIZE: le diagonali che escono da un lato devono
-    // rientrare dall'altro, altrimenti gli angoli della tile restano vuoti.
+    // From -HATCH_SIZE to +2*HATCH_SIZE: the diagonals leaving one side have to
+    // come back in on the other, or the tile's corners stay empty.
     for (let i = -spec.density; i < spec.density * 2; i++) {
         const x = i * step;
         ctx.beginPath();
@@ -65,11 +64,12 @@ function drawDiagonals(ctx: CanvasRenderingContext2D, spec: CelHatchSpec, mirror
 }
 
 function buildHatch(scene: Scene, spec: CelHatchSpec): DynamicTexture {
-    // NIENTE mipmap. Un retino è fatto di linee sottili: appena la tile viene
-    // rimpicciolita, il mipmap le media col fondo e il tratteggio sbianca fino
-    // a sparire — sembra che l'intensità non funzioni, e invece è la texture che
-    // si è già dissolta prima di arrivare allo shader. Il retino va usato a
-    // scala ~1:1 (vedi il default di `hatchScale`), dove i mipmap non servono.
+    // NO mipmaps. A screen is made of thin lines: as soon as the tile is
+    // minified, the mipmap averages them with the background and the hatching
+    // washes out until it disappears — it looks like the intensity is broken,
+    // when in fact the texture has already dissolved before reaching the shader.
+    // The screen is meant to be used at ~1:1 scale (see the default of
+    // `hatchScale`), where mipmaps are of no use.
     const dt = new DynamicTexture(
         `cel-hatch-${spec.density}`,
         { width: HATCH_SIZE, height: HATCH_SIZE },
@@ -88,14 +88,14 @@ function buildHatch(scene: Scene, spec: CelHatchSpec): DynamicTexture {
     dt.update(false);
     dt.wrapU = Texture.WRAP_ADDRESSMODE;
     dt.wrapV = Texture.WRAP_ADDRESSMODE;
-    // Maschera di copertura, non colore: nessuna decodifica gamma.
+    // A coverage mask, not a color: no gamma decoding.
     dt.gammaSpace = false;
     return dt;
 }
 
-// Corsia veloce identica a quella di `getCelRamp`, e per lo stesso motivo: questa
-// funzione sta nel `bindForSubMesh` del plugin cel, cioè una chiamata per submesh
-// per frame. Vedi il commento esteso in celRamp.ts per il ragionamento completo.
+// A fast lane identical to `getCelRamp`'s, and for the same reason: this function
+// sits in the cel plugin's `bindForSubMesh`, i.e. one call per submesh per frame.
+// See the extended comment in celRamp.ts for the full reasoning.
 let lastHatchScene: Scene | null = null;
 let lastHatchSpec: CelHatchSpec | null = null;
 let lastHatchTex: DynamicTexture | null = null;

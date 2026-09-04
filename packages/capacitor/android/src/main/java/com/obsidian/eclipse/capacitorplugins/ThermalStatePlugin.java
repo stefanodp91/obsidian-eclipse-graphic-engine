@@ -23,9 +23,9 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  *
  * Thermal requires API 29+ (Android 10) — falls back to "nominal" on older devices.
  * Power-save (isPowerSaveMode + ACTION_POWER_SAVE_MODE_CHANGED) is API 21+.
- * Target devices (Pixel 4 = API 33, Galaxy A25 = API 34, Pixel 9 Pro = API 34) all support both.
+ * Reference devices (Pixel 4 = API 33, Galaxy A25 = API 34, Pixel 9 Pro = API 34) all support both.
  *
- * Fase 4b: lives in the obsidian-eclipse-capacitor-plugins package; auto-registered
+ * Lives in the obsidian-eclipse-capacitor-plugins package; auto-registered
  * by Capacitor via `cap sync` (no manual registerPlugin in the host MainActivity).
  */
 @CapacitorPlugin(name = "ThermalState")
@@ -84,7 +84,7 @@ public class ThermalStatePlugin extends Plugin {
      * Battery temperature in °C from the sticky ACTION_BATTERY_CHANGED intent
      * (EXTRA_TEMPERATURE, tenths of °C) — the only device temperature Android
      * exposes to non-privileged apps (CPU/skin need HardwarePropertiesManager,
-     * device-owner only). Perf HUD observability (owner 2026-07-13).
+     * device-owner only). Perf-HUD observability (2026-07-13).
      * iOS mirror is platform-honest: no public temperature API → batteryC null
      * (same pattern as DisplayRefresh's no-op setRefreshMode).
      */
@@ -104,26 +104,25 @@ public class ThermalStatePlugin extends Plugin {
     /**
      * getThermalHeadroom(forecastSeconds) → { headroom: number | null }
      *
-     * PowerManager.getThermalHeadroom (API 30+): 0..1 = frazione del budget
-     * termico consumata, con 1.0 = throttling severo. È l'unico segnale
-     * CONTINUO e soprattutto PREDITTIVO che Android espone: `getCurrentThermalStatus`
-     * è a gradini e arriva quando il device sta già limitando (misurato: MODERATE
-     * dopo 16 minuti di gioco, SEVERE dopo 22 con high-refresh ON).
+     * PowerManager.getThermalHeadroom (API 30+): 0..1 = fraction of the thermal
+     * budget consumed, with 1.0 = severe throttling. It is the only CONTINUOUS and,
+     * above all, PREDICTIVE signal Android exposes: `getCurrentThermalStatus` is
+     * stepped and arrives when the device is already throttling (measured:
+     * MODERATE after 16 minutes of play, SEVERE after 22 with high-refresh ON).
      *
-     * Ritorna null quando il valore non è disponibile: API < 30, oppure NaN —
-     * l'OS restituisce NaN se lo si interroga troppo spesso (il contratto chiede
-     * un minimo di ~10s fra le chiamate) o se il device non lo implementa.
-     * null significa "non lo so", MAI 0: uno zero verrebbe letto come "device
-     * freddo" e disarmerebbe il governor proprio dove il segnale manca.
+     * Returns null when the value is unavailable: API < 30, or NaN — the OS
+     * returns NaN if queried too often (the contract asks for a minimum of ~10s
+     * between calls) or if the device does not implement it. null means "I don't
+     * know", NEVER 0: a zero would be read as "cold device" and would disarm the
+     * governor precisely where the signal is missing.
      */
     /**
-     * Intervallo minimo fra due letture reali, dal contratto dell'API: sotto i
-     * ~10s l'OS restituisce NaN. Il rate-limit sta ANCHE qui, e non solo nel
-     * facade TS, perché la finestra è di processo: due chiamanti JS distinti
-     * (governor + PerfHud) rispettano ciascuno il proprio intervallo e insieme
-     * violano quello dell'OS. Il risultato sarebbe un NaN → null letto come
-     * "segnale non disponibile", cioè un governor termico disarmato da un
-     * eccesso di zelo nel misurarlo.
+     * Minimum interval between two real reads, from the API contract: below ~10s
+     * the OS returns NaN. The rate limit lives here TOO, and not only in the TS
+     * facade, because the window is process-wide: two distinct JS callers
+     * (a thermal governor and a perf HUD) each respect their own interval and together violate
+     * the OS's. The result would be a NaN → null read as "signal unavailable",
+     * i.e. a thermal governor disarmed by an excess of zeal in measuring it.
      */
     private static final long HEADROOM_MIN_INTERVAL_MS = 11_000L;
 
@@ -146,7 +145,7 @@ public class ThermalStatePlugin extends Plugin {
                 && (now - headroomLastAtMs) < HEADROOM_MIN_INTERVAL_MS;
 
         if (withinWindow) {
-            // Ultimo valore BUONO invece di un null autoinflitto.
+            // The last GOOD value instead of a self-inflicted null.
             if (headroomLastValue == null) ret.put("headroom", JSObject.NULL);
             else ret.put("headroom", (double) headroomLastValue.floatValue());
             call.resolve(ret);
@@ -209,11 +208,11 @@ public class ThermalStatePlugin extends Plugin {
                 return "fair";
             case PowerManager.THERMAL_STATUS_SEVERE:
                 return "serious";
-            // Termica S6.1: CRITICAL non è più collassato in "serious". Prima
-            // "critical" si raggiungeva solo a EMERGENCY/SHUTDOWN, cioè a
-            // spegnimento imminente — un livello di fatto irraggiungibile, che
-            // rendeva inerti sia il trim massimo del governor sia il trigger di
-            // re-probe `thermal=critical` di DeviceProbe.
+            // CRITICAL is no longer collapsed into "serious".
+            // Previously "critical" was only reached at EMERGENCY/SHUTDOWN, i.e.
+            // at imminent shutdown — a level that was effectively unreachable,
+            // which made both the governor's maximum trim and DeviceProbe's
+            // `thermal=critical` re-probe trigger inert.
             case PowerManager.THERMAL_STATUS_CRITICAL:
             case PowerManager.THERMAL_STATUS_EMERGENCY:
             case PowerManager.THERMAL_STATUS_SHUTDOWN:

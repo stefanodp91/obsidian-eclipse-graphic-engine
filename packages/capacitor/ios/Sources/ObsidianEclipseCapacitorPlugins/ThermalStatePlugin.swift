@@ -1,6 +1,6 @@
 // ThermalStatePlugin — exposes ProcessInfo thermal + low-power signals to JavaScript
 // via Capacitor. Registered automatically by Capacitor plugin discovery (CAPBridgedPlugin).
-// Symmetric with the Android ThermalStatePlugin (Fase 4b/4c).
+// Symmetric with the Android ThermalStatePlugin.
 //
 // JS usage:
 //   const ThermalState = registerPlugin('ThermalState');
@@ -59,20 +59,20 @@ public class ThermalStatePlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve(["enabled": ProcessInfo.processInfo.isLowPowerModeEnabled])
     }
 
-    // getTemperature() → { batteryC: null } — platform-honest (pattern
-    // DisplayRefresh): iOS non espone NESSUNA temperatura a un'app pubblica
-    // (né batteria né SoC); il segnale termico iOS resta thermalState.
-    // Il mirror Android ritorna la temperatura batteria reale in °C.
+    // getTemperature() → { batteryC: null } — platform-honest (the DisplayRefresh
+    // pattern): iOS exposes NO temperature at all to a public app (neither
+    // battery nor SoC); the iOS thermal signal remains thermalState. The Android
+    // mirror returns the real battery temperature in °C.
     @objc func getTemperature(_ call: CAPPluginCall) {
         call.resolve(["batteryC": NSNull()])
     }
 
     // getThermalHeadroom() → { headroom: null } — platform-honest.
-    // Apple non espone alcun equivalente di PowerManager.getThermalHeadroom:
-    // non esiste un budget termico numerico né una previsione. L'unico segnale
-    // iOS resta ProcessInfo.thermalState, a 4 gradini, già esposto da getState().
-    // Si ritorna null e NON 0: uno zero significherebbe "device freddo" e
-    // disarmerebbe il governor proprio dove il segnale non c'è.
+    // Apple exposes no equivalent of PowerManager.getThermalHeadroom: there is no
+    // numeric thermal budget and no forecast. The only iOS signal remains
+    // ProcessInfo.thermalState, with 4 steps, already exposed by getState().
+    // It returns null and NOT 0: a zero would mean "cold device" and would disarm
+    // the governor precisely where the signal is missing.
     @objc func getThermalHeadroom(_ call: CAPPluginCall) {
         call.resolve(["headroom": NSNull()])
     }

@@ -36,19 +36,20 @@ export function installMasterTick(scene: Scene, opts?: MasterTickOpts): void {
         return 'anon';
     };
 
-    // ⚠️ Un callback che lancia lo fa a OGNI FRAME, non una volta.
+    // ⚠️ A callback that throws does so EVERY FRAME, not once.
     //
-    // La versione precedente rispondeva con `console.error` incondizionato: 60
-    // stack trace al secondo su una WebView Android sono una voce di costo reale
-    // nel frame — la mitigazione dell'errore diventava essa stessa un problema di
-    // performance, proprio mentre qualcosa era già rotto. E non arrivando a
-    // nessun sink, l'errore non compariva in telemetria: restava visibile solo a
-    // chi avesse per caso un cavo attaccato.
+    // The previous version answered with an unconditional `console.error`: 60
+    // stack traces a second on an Android WebView are a real cost item in the
+    // frame — the error mitigation was itself becoming a performance problem,
+    // precisely while something was already broken. And since it reached no sink,
+    // the error never showed up in telemetry: it stayed visible only to whoever
+    // happened to have a cable attached.
     //
-    // Ora: si riporta la PRIMA occorrenza per callback (quella con l'informazione
-    // diagnostica), poi si smette. Il conteggio viaggia col report successivo, così
-    // "è successo una volta" e "succede da mezz'ora" restano distinguibili.
-    const REPORT_EVERY = 600;   // ~10 s a 60 fps
+    // Now: the FIRST occurrence per callback is reported (the one with the
+    // diagnostic information), then it stops. The count travels with the next
+    // report, so "it happened once" and "it has been happening for half an hour"
+    // stay distinguishable.
+    const REPORT_EVERY = 600;   // ~10 s at 60 fps
     const failures = new Map<string, number>();
 
     const onCallbackError = (name: string, e: unknown): void => {
