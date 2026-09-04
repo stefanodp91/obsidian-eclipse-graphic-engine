@@ -20,7 +20,7 @@ export function installPersistentShaderCache(): void {
     Effect.PersistentMode = true;
 }
 
-/** Ripristina il ref-counting standard (test/teardown). */
+/** Restores standard ref-counting (test/teardown). */
 export function uninstallPersistentShaderCache(): void {
     Effect.PersistentMode = false;
 }

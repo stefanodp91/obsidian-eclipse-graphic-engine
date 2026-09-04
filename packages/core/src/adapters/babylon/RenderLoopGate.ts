@@ -47,10 +47,10 @@ export function setupRenderLoopGate(
                 const cap = opts.targetFps?.();
                 if (cap != null && cap > 0) {
                     const now = performance.now();
-                    // Tolleranza di mezzo frame di vsync.
+                    // Half a vsync frame of tolerance.
                     //
-                    // Il confronto secco `now - last < 1000/cap` sembra corretto e
-                    // it is not: rAF arrives on multiples of the panel's refresh,
+                    // The blunt comparison `now - last < 1000/cap` looks correct
+                    // and it is not: rAF arrives on multiples of the panel's refresh,
                     // so a frame landing ONE MILLISECOND before the deadline is
                     // skipped and the next one arrives a whole refresh later. At
                     // 60Hz with a cap of 40 the result is not 40 fps but 30 — a

@@ -49,9 +49,9 @@ uniform sampler2D celHatchSampler;
  *  `uniform sampler2D x` into a separate texture and sampler and recombines them
  *  at the point of use; passing the combined value to a function makes SPIR-V
  *  compilation fail with «sampler constructor must appear at point of use»,
- *  whereas in WebGL2 the same code compiles without a murmur. The game forces
- *  WebGL2 and workbench harnesses run on WebGPU: both have to compile, so the rule always
- *  holds, even where it seems to work.
+ *  whereas in WebGL2 the same code compiles without a murmur. A consumer may
+ *  force WebGL2 while a workbench harness runs on WebGPU: both have to compile,
+ *  so the rule always holds, even where it seems to work.
  *
  *  The rest of the inputs stay explicit, so that the migration to
  *  MaterialPluginBase can call the same terms in the same order inside a

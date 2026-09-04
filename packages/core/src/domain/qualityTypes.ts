@@ -5,7 +5,7 @@ export type QualityPreset = 'mobile-flagship' | 'mobile-mid' | 'mobile-low';
 
 export type LodTier = 'hi' | 'mid' | 'lo';
 
-/** Engine-pure rendering + physics knobs. The game's own QualityProfile is a
+/** Engine-pure rendering + physics knobs. A consumer's own QualityProfile is a
  *  superset that satisfies this structurally — engine modules read only these
  *  fields; game-content additions (audio schedule, LOD family names, etc.) are
  *  invisible here. */

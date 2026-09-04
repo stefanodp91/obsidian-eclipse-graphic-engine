@@ -243,7 +243,7 @@ export async function runDeviceProbe(scene: Scene, displayHzOverride?: number): 
     let skipped = 0;
     let prev = performance.now();
 
-    // ⚠️ Il probe si risolve su un evento di RENDER, e il render può fermarsi:
+    // ⚠️ The probe resolves on a RENDER event, and rendering can stop:
     // it is enough for the user to send the app to the background, or for the
     // render gate to close the loop, while the first frames are being counted.
     // With no deadline the promise NEVER resolves, the observer stays attached,
@@ -288,7 +288,7 @@ export async function runDeviceProbe(scene: Scene, displayHzOverride?: number): 
         });
     });
 
-    // Un campione scarso è peggio di nessun campione: la mediana di 3 frame
+    // A poor sample is worse than no sample: the median of 3 frames
     // collected while the app went to the background measures the stall, not the
     // device, and would be PERSISTED as a cap for the whole version. Below a third
     // of the expected frames it falls back to the target (= no cap) and leaves the

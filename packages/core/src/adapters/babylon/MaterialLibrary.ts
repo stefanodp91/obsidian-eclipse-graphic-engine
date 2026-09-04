@@ -174,7 +174,6 @@ export function createLitVertexColorMat(
     return createFlatLitVertexColorMat(name, scene, emissiveFloor);
 }
 
-/** Il materiale decor STORICO — flat lit + vertex color + floor emissivo —
 /** The HISTORICAL decor material — flat lit + vertex color + emissive floor —
  *  built DIRECTLY, without going through the scene's shading mode.
  *
