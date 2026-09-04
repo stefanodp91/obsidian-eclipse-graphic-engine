@@ -1,6 +1,6 @@
 {
   "name": "obsidian-eclipse-capacitor-plugins",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Optional Capacitor adapter for obsidian-eclipse-graphic-engine: thermal, refresh, battery, preferences and wake lock.",
   "type": "module",
   "license": "MIT",
@@ -54,7 +54,7 @@
     "check": "npm run typecheck && npm run check:native-contract && npm run build"
   },
   "dependencies": {
-    "obsidian-eclipse-graphic-engine": "^0.1.0"
+    "obsidian-eclipse-graphic-engine": "^0.2.0"
   },
   "peerDependencies": {
     "@capacitor/core": "^8",

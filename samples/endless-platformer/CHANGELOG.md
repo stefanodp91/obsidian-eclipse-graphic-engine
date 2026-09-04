@@ -4,6 +4,13 @@ All notable changes to the Endless Shark sample are documented here.
 
 ## Unreleased
 
+## 0.2.0 - 2026-09-04
+
+### Changed
+
+- Version aligned with the 0.2.0 engine release. The sample does not use the cel subsystem,
+  so its rendering is unchanged.
+
 ## 0.1.1 - 2026-08-31
 
 ### Changed

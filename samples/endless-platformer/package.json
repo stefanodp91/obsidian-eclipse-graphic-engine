@@ -1,6 +1,6 @@
 {
   "name": "@obsidian-eclipse/sample-endless-platformer",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
   "dependencies": {
     "@babylonjs/core": "^9",
     "@obsidian-eclipse/endless-shark-models": "file:./models",
-    "obsidian-eclipse-graphic-engine": "^0.1.0",
+    "obsidian-eclipse-graphic-engine": "^0.2.0",
     "react": "^19",
     "react-dom": "^19",
     "react-reconciler": "0.31.0",
