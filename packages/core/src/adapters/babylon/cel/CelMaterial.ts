@@ -137,7 +137,13 @@ function pushMaterialState(
         material.setFloat('celAlpha', opts.alpha);
         material.alpha = opts.alpha;
     }
-    if (patch.ramp) material.setTexture('celRampSampler', getCelRamp(scene, opts.ramp));
+    if (patch.ramp) {
+        material.setTexture('celRampSampler', getCelRamp(scene, opts.ramp));
+        // I gradini viaggiano ANCHE come scalare, non solo cotti nella texture:
+        // il retino deve sapere dove finisce la banda d'ombra, e da una texture
+        // già quantizzata quel confine non è più leggibile.
+        material.setFloat('celRampBands', opts.ramp.bands);
+    }
     if (patch.hatch) material.setTexture('celHatchSampler', getCelHatch(scene, opts.hatch));
     if (patch.backFaceCulling !== undefined) material.backFaceCulling = opts.backFaceCulling;
 }
@@ -151,6 +157,7 @@ const UNIFORMS = [
     'celFogColor', 'celCameraPosition',
     'celRimStrength', 'celRimWidth', 'celSpecStrength', 'celSpecPower',
     'celHatchStrength', 'celHatchScale', 'celFogDensity', 'celAlpha',
+    'celRampBands',
 ];
 
 const SAMPLERS = ['celRampSampler', 'celHatchSampler'];

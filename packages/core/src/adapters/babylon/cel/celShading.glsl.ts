@@ -35,6 +35,7 @@ uniform float celSpecStrength;
 uniform float celSpecPower;
 uniform float celHatchStrength;
 uniform float celHatchScale;
+uniform float celRampBands;   // gradini della ramp: dice al retino dove finisce la banda d'ombra
 uniform float celFogDensity;
 uniform float celAlpha;
 uniform sampler2D celRampSampler;
@@ -71,6 +72,15 @@ vec3 celLightBand(vec3 normalW, vec3 lightDir) {
     float ndl = dot(normalW, -normalize(lightDir));
     float t   = clamp(ndl * 0.5 + 0.5, 0.0, 1.0);
     return texture2D(celRampSampler, vec2(t, 0.5)).rgb;
+}
+
+// La COORDINATA di rampa, cioè dove questo pixel cade sull'asse 0..1 prima che
+// la ramp lo quantizzi. Serve al retino, che non deve sapere di che TINTA è la
+// banda ma in QUALE banda si trova: le tinte sono art-direction e cambiano per
+// livello, l'indice no.
+float celRampCoord(vec3 normalW, vec3 lightDir) {
+    float ndl = dot(normalW, -normalize(lightDir));
+    return clamp(ndl * 0.5 + 0.5, 0.0, 1.0);
 }
 
 // ── Fill emisferico ──────────────────────────────────────────────────────────
@@ -110,16 +120,38 @@ float celInkRim(vec3 normalW, vec3 viewDir, float width, float strength) {
 // disegno a penna. Campionato in SCREEN SPACE (come un retino da stampa) e
 // applicato solo dove la luce è bassa: il tratto vive sulla carta, non sul
 // modello, ed è esattamente questa incoerenza che lo fa leggere come disegnato.
-float celHatch(vec2 fragCoord, float shade, float scale, float strength) {
+// IL RETINO VIVE NELLA BANDA PIÙ SCURA, E SOLO LÌ.
+//
+// La finestra precedente (1 - smoothstep(0.30, 0.95, luminanza di banda))
+// prendeva la banda scura piena, la media per circa un terzo e lasciava pulita
+// solo la chiara — e sotto l'impianto luci di un gioco vero metà del mondo cade
+// nella zona intermedia, quindi il tratteggio compariva su superfici che
+// l'occhio legge come illuminate. Era una finestra tarata su una scena da
+// laboratorio, dove la luce arriva da uniform a intensità 1.
+//
+// Ora il confine è la banda, non una soglia di luminanza: rampU è la
+// coordinata 0..1 PRIMA della quantizzazione, e la prima banda finisce a
+// 1/bands. Sotto quel confine il retino è pieno, sopra è zero, con una
+// dissolvenza corta sull'ultimo 15% della banda che serve solo a non far
+// scattare il bordo di un pixel.
+//
+// ⚠️ La coordinata e non la luminanza della banda: la tinta d'ombra è
+// art-direction e cambia per livello (un consumer può dichiararne una per
+// livello), quindi una soglia in luminanza si sposterebbe da un livello all'altro
+// mentre l'indice di banda resta lo stesso ovunque.
+//
+// ⚠️ bands = 0 è la rampa CONTINUA del laboratorio, dove una «banda più
+// scura» non esiste: lì vale il terzo inferiore dell'asse, che è la stessa
+// frazione che una rampa a tre gradini darebbe.
+float celHatchMask(float rampU, float bands) {
+    float edge = bands > 0.5 ? 1.0 / bands : 0.34;
+    return 1.0 - smoothstep(edge * 0.85, edge, rampU);
+}
+
+float celHatch(vec2 fragCoord, float rampU, float bands, float scale, float strength) {
     if (strength <= 0.0) return 1.0;
     float h    = texture2D(celHatchSampler, fragCoord / max(scale, 1.0)).r;
-    // Finestra tarata sulle luminanze che una ramp a 3 bande produce davvero
-    // (~0.36 scura, ~0.68 media, ~1.0 chiara): retino pieno nella banda scura,
-    // circa un terzo nella media, nulla nella chiara. Una finestra più stretta
-    // lasciava il tratteggio solo nella banda più buia, dove copre troppo poco
-    // schermo per cambiare il carattere dell'immagine.
-    float mask = 1.0 - smoothstep(0.30, 0.95, shade);
-    return 1.0 - (1.0 - h) * mask * strength;
+    return 1.0 - (1.0 - h) * celHatchMask(rampU, bands) * strength;
 }
 
 // ── Nebbia ───────────────────────────────────────────────────────────────────
@@ -149,8 +181,8 @@ export const CEL_FRAGMENT_BODY = /* glsl */ `
     vec3  band   = celLightBand(normalW, celLightDirection);
     vec3  fill   = celAmbient(normalW, celAmbientSky, celAmbientGround);
     vec3  spec   = celSpecular(normalW, viewDir, celLightDirection, celSpecColor, celSpecStrength, celSpecPower);
-    float shade  = dot(band, vec3(0.299, 0.587, 0.114));
-    float hatch  = celHatch(gl_FragCoord.xy, shade, celHatchScale, celHatchStrength);
+    float rampU  = celRampCoord(normalW, celLightDirection);
+    float hatch  = celHatch(gl_FragCoord.xy, rampU, celRampBands, celHatchScale, celHatchStrength);
     float rim    = celInkRim(normalW, viewDir, celRimWidth, celRimStrength);
 
     vec3 color = albedo * (band * celLightColor + fill);

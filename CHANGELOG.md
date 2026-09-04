@@ -7,6 +7,41 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Cel material plugin: the hatching mask now reads the quantized light band instead of the final
+  pixel colour. Its window (`1 - smoothstep(0.30, 0.95, shade)`) was calibrated on band luminances,
+  but the plugin was feeding it `dot(color.rgb, ...)` — the band already multiplied by albedo — so
+  hatching tracked an object's **tint** rather than its **light**: a grey rock in full sunlight was
+  hatched because it is grey, a white surface in shadow stayed clean because it is white, and a
+  dark-toned scene was hatched edge to edge. The `ShaderMaterial` path was always correct; the two
+  paths now agree, as their documentation already claimed. Regression test:
+  `CelMaterialPlugin.hatch.test.ts`.
+
+### Changed
+
+- Cel hatching is now confined to the **darkest ramp band** and is zero everywhere else. The former
+  window (`1 - smoothstep(0.30, 0.95, shade)`) gave the shadow band full hatching, the middle band
+  about a third, and left only the brightest one clean — a calibration made against a lab rig lit by
+  uniforms at intensity 1. Under a real lighting rig much of a scene falls in that middle range, so
+  hatching appeared on surfaces the eye reads as lit. The boundary is now the band itself
+  (`1/bands` on the pre-quantization ramp axis, with a short fade over its last 15%), which also
+  makes it independent of the shadow tint — that tint is art direction and changes per level, while
+  the band index does not. The ramp's band count reaches the shader as the new `celRampBands`
+  uniform; `bands = 0` (the lab's continuous ramp, where no darkest band exists) falls back to the
+  lower third of the axis.
+
+  The mask counts **self-emitted light as light** (`diffuseBase + emissiveColor`): a surface that
+  glows is not in shadow. Without that term a self-lit object receives nothing, lands in the first
+  band and takes full hatching — which is exactly what happened to a consumer's glowing collectibles
+  before the term was added. Where the emissive is already folded into `diffuseBase`
+  (`EMISSIVEASILLUMINATION`, `LINKEMISSIVEWITHDIFFUSE`) it is counted twice, which only pushes the
+  mask toward "more lit", i.e. toward less hatching.
+
+  Visible change for consumers who rely on hatching over midtones: it now reads as a shadow
+  treatment rather than a surface texture. The mask needs no texture lookup of its own — it
+  recomputes the ramp coordinate with a dot product — so this is not more expensive than 0.1.1.
+
 ## [0.1.1] - 2026-08-31
 
 ### Added
