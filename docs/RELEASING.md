@@ -23,7 +23,7 @@ noreply addresses and the exact owner-approved identity in `scripts/check-sensit
 Other identities still fail. The exception does not apply to tracked-file content checks and
 does not require rewriting public history.
 
-The current [0.2.1 candidate notes](releases/0.2.1.md) record compatibility and validation status.
+The current [0.2.1 release notes](releases/0.2.1.md) record compatibility and validation status.
 
 ## Publish a release
 

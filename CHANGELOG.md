@@ -7,9 +7,9 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.2.1] - Unreleased
+## [0.2.1] - 2026-09-06
 
-Cumulative patch candidate; preparation does not publish a tag or release.
+Cumulative patch for lifecycle guards, render scheduling and baked cel outlines.
 
 ### Fixed
 
