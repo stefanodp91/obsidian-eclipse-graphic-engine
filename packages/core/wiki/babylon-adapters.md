@@ -38,6 +38,34 @@ sequenceDiagram
 callbacks. `setupRenderLoopGate()` controls whether the render loop and physics advance; the host
 must keep lifecycle events and phase transitions synchronized.
 
+### Render-loop ownership
+
+`setupRenderLoopGate()` exclusively controls rendering on the supplied engine. It replaces host
+render callbacks using Babylon's public `stopRenderLoop()` / `runRenderLoop()` APIs; use one gate
+per engine and do not install another render-loop owner alongside it. Its callback renders the
+supplied scene only when that scene has an active camera.
+
+Ownership starts unknown, rather than assuming the host's existing callback is already gated.
+The first state notification replaces that callback when active, or stops it when inactive.
+Repeated notifications of the same state do not register additional callbacks.
+
+The existing one-second startup window allows hosts such as Reactylon to finish registering their
+loop after scene-ready. At its end the gate reconciles again, even if a state notification already
+arrived, so a late host registration cannot leave an uncapped callback running. Without an earlier
+notification the first reconciliation happens at this deadline; the host loop can still run during
+that startup window. Hosts must complete their loop registration within this window and leave
+render-loop ownership to the gate afterwards.
+
+Cleanup cancels the startup timer, unsubscribes state listeners and stops rendering, including when
+called before startup reconciliation. A captured gated callback is inert while stopped or disposed.
+The scene and engine remain host-owned and must be disposed separately.
+
+The target cap is read live by the gated callback. This ownership fix does not change the existing
+frame-skip tolerance (`period * 0.5`); a requested target is not yet a precise delivered-fps bound.
+Validate delivered renders separately from rAF/engine frame counters. Regression coverage lives in
+[`RenderLoopGate.lifecycle.test.ts`](../src/adapters/babylon/RenderLoopGate.lifecycle.test.ts),
+including a check against Babylon's real callback registry with `NullEngine`.
+
 ## Global switches
 
 Some adapters modify Babylon-wide state, including persistent shader caching and log suppression.

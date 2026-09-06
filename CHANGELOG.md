@@ -9,6 +9,13 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Establish render-loop gate ownership on the first active or inactive reconciliation. Previously,
+  an already-active host loop was mistaken for the gated callback, leaving the first session
+  uncapped until an inactive transition occurred. The gate now replaces existing callbacks,
+  reconciles late host registration at the startup deadline, avoids duplicate callbacks, and
+  cancels pending startup on cleanup. The existing startup delay and frame-skip tolerance are
+  unchanged; this does not make requested fps an exact delivered-fps limit.
+
 - Enforce the documented facade disposal contract for asset mutations, material release, pool
   registration/release/prewarm, and input event consumption. These operations now throw before
   reaching host services after `dispose()`, including when optional ports are absent. Reads,

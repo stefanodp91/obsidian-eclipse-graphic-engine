@@ -28,41 +28,40 @@ export function setupRenderLoopGate(
     scene: Scene,
     opts: RenderLoopGateOpts,
 ): { cleanup: () => void } {
-    let loopRunning = true;
+    // null means ownership is not established: an existing host loop is not
+    // evidence that OUR callback is installed. runRenderLoop adds callbacks.
+    let loopRunning: boolean | null = null;
     let lastRenderMs = 0;
     let disposed = false;
+
+    const render = () => {
+        // Babylon may already have captured a callback when teardown occurs.
+        if (disposed || !loopRunning) return;
+        const cap = opts.targetFps?.();
+        if (cap != null && cap > 0) {
+            const now = performance.now();
+            // Preserve the existing target-relative tolerance in this ownership
+            // fix. It is half the TARGET period, not the display period, so it
+            // can exceed the requested fps. Precision is a separate contract.
+            const period = 1000 / cap;
+            const tolerance = period * 0.5;
+            if (now - lastRenderMs < period - tolerance) return;   // skip: throttle
+            lastRenderMs = now;
+        }
+        if (scene.activeCamera) scene.render();
+    };
 
     const resolveRenderLoop = () => {
         if (disposed) return;
         const want = opts.isRenderActive();
-        if (!want) {
-            if (loopRunning) {
-                engine.stopRenderLoop();
-                loopRunning = false;
-            }
-            return;
-        }
-        if (!loopRunning) {
-            engine.runRenderLoop(() => {
-                const cap = opts.targetFps?.();
-                if (cap != null && cap > 0) {
-                    const now = performance.now();
-                    // Half a vsync frame of tolerance.
-                    //
-                    // The blunt comparison `now - last < 1000/cap` looks correct
-                    // and it is not: rAF arrives on multiples of the panel's refresh,
-                    // so a frame landing ONE MILLISECOND before the deadline is
-                    // skipped and the next one arrives a whole refresh later. At
-                    // 60Hz with a cap of 40 the result is not 40 fps but 30 — a
-                    // whole step lost, in the form of beating. Granting half a
-                    // refresh period makes the decision fall on the right side.
-                    const period = 1000 / cap;
-                    const tolerance = period * 0.5;
-                    if (now - lastRenderMs < period - tolerance) return;   // skip: throttle
-                    lastRenderMs = now;
-                }
-                if (scene.activeCamera) scene.render();
-            });
+        if (loopRunning === want) return;
+        // This adapter exclusively owns rendering for the adopted engine.
+        // Remove the host callback before installing the gated one, including
+        // when the first observed state is already active.
+        engine.stopRenderLoop();
+        loopRunning = false;
+        if (want) {
+            engine.runRenderLoop(render);
             loopRunning = true;
         }
     };
@@ -72,7 +71,13 @@ export function setupRenderLoopGate(
     // alive: it fires after everything has been disposed and RESTARTS a render
     // loop on a dead engine. The symptom is a crash inside Babylon with no
     // visible relation to the unmount that caused it.
-    const bootTimer = setTimeout(resolveRenderLoop, 1000);
+    const bootTimer = setTimeout(() => {
+        if (disposed) return;
+        // A notification may have arrived before the host registered its loop
+        // after scene-ready. Reconcile once more at the end of the boot window.
+        loopRunning = null;
+        resolveRenderLoop();
+    }, 1000);
 
     const unsubRender = opts.onRenderActiveChange(resolveRenderLoop);
     const unsubApp = opts.onAppActiveChange(() => { resolveRenderLoop(); });
@@ -84,12 +89,10 @@ export function setupRenderLoopGate(
             clearTimeout(bootTimer);
             unsubRender();
             unsubApp();
-            // The gate SWITCHED this loop on: switching it off is part of its
-            // teardown.
-            if (loopRunning) {
-                engine.stopRenderLoop();
-                loopRunning = false;
-            }
+            // Stop even before ownership is established, or after an inactive
+            // notification: the host may have registered during the boot window.
+            engine.stopRenderLoop();
+            loopRunning = false;
         },
     };
 }
