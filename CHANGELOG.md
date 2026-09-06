@@ -7,14 +7,20 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove identity-specific Git author policy from source. Keep Git metadata separate from
+  tracked content and enforce the email-content check on the checker itself as well.
+  No runtime package or native code changes; the published 0.2.1 tag remains unchanged.
+
 ## [0.2.1] - 2026-09-06
 
 Cumulative patch for lifecycle guards, render scheduling and baked cel outlines.
 
 ### Fixed
 
-- Accept the exact owner-approved Git author identity alongside GitHub noreply identities,
-  without rewriting history or changing tracked-file sensitive-data checks.
+- Adjust Git author validation without rewriting history. This repository-only policy is
+  superseded by the unreleased content-scanning correction above.
 
 - Bound baked cel strokes using the opposite triangle surface of the same connected component
   and a volume/area size estimate. Bake-time BVHs replace vertex-neighbor searches, avoiding

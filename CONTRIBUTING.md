@@ -30,6 +30,9 @@ product-specific repositories. Run `npm run check:docs` after documentation chan
 Never commit credentials, personal email addresses, local home-directory paths, Firebase project
 configuration, signing material, or consumer-specific secret names. Keep those values in the host
 application or its protected CI environment and run `npm run check:sensitive` before committing.
+Source code and comments must not contain developer identities or personal data. There are no
+personal allowlists: email scanning includes the checker itself. Git author metadata is separate
+from tracked content and does not require an identity-specific exception in source code.
 
 ## Pull requests
 

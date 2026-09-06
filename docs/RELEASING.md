@@ -18,10 +18,9 @@ The deployment workflow does not publish the packages to npm.
 
 Preparation is local. Do not tag, push a release tag, start remote validation, or publish assets
 without an explicit owner request for that action. If `npm run check` fails, preserve the failing
-gate and report the blocker; a passing subset is not release approval. Git author metadata accepts GitHub
-noreply addresses and the exact owner-approved identity in `scripts/check-sensitive.mjs`.
-Other identities still fail. The exception does not apply to tracked-file content checks and
-does not require rewriting public history.
+gate and report the blocker; a passing subset is not release approval. The sensitive-data gate scans
+tracked content, including email literals in the checker itself. Git author metadata is outside
+that content scan; never encode personal identities or address allowlists in source code.
 
 The current [0.2.1 release notes](releases/0.2.1.md) record compatibility and validation status.
 
