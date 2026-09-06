@@ -524,7 +524,11 @@ function tryBakeCelHull(
         cz3[i] = Number(parts[2]) / 1e4;
         const n = clusters.get(k) ?? [0, 1, 0];
         const len = Math.hypot(n[0], n[1], n[2]) || 1;
-        nx3[i] = n[0] / len; ny3[i] = n[1] / len; nz3[i] = n[2] / len;
+        // Search behind the OUTWARD normal, just as the extrusion below does.
+        // Authored inward normals otherwise search outside the solid and miss
+        // its opposite wall, silently restoring the full stroke on thin parts.
+        const sign = extrudeSign(find(i));
+        nx3[i] = sign * n[0] / len; ny3[i] = sign * n[1] / len; nz3[i] = sign * n[2] / len;
     });
     const grid = new Map<string, number[]>();
     const cellKey = (x: number, y: number, z: number): string =>

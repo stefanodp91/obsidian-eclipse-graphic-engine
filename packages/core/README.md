@@ -166,6 +166,18 @@ imports into `src/`; only declared package exports are public API.
 Read the [core engine documentation](wiki/index.md) for lifecycle, ownership, quality, Babylon,
 cel-rendering, performance, and Reactylon integration guides.
 
+## Baked cel hull thickness
+
+`bakeCelHullIntoMesh` from `obsidian-eclipse-graphic-engine/babylon` treats the requested width
+as a maximum local extrusion. Its existing vertex-neighbor heuristic reduces that width when
+it finds an opposite wall nearby. The search and extrusion both use outward-oriented normals,
+so reversing a closed solid's winding and normals does not disable thickness reduction.
+
+This is a sampled heuristic, not a general thickness solver: sparse vertices, tapered parts and
+merged components still need content-specific validation. The separate shader/per-mesh outline
+fallbacks do not inherit this baked-geometry rule. Body geometry stays unchanged apart from buffer
+precision, and `celBodyBoxOf` retains its pre-hull local bounds for physical measurements.
+
 ## Development
 
 From the repository root:

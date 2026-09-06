@@ -9,6 +9,12 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Use outward-oriented normals for baked hull thickness searches, matching extrusion.
+  Inward-authored normals previously searched outside the solid and left thin parts with
+  the full requested stroke. Five regressions cover three geometry densities, thick solids,
+  unchanged body geometry/bounds and pool reuse. This preserves the existing relative-width
+  policy; it does not replace the sampled opposite-wall heuristic with a thickness guarantee.
+
 - Pace capped rendering with cumulative deadlines instead of a half-period tolerance.
   Requested rates now remain accurate across 60/90/120 Hz callback streams, including
   non-divisor targets and jitter. Cap changes and resume render immediately; long stalls
