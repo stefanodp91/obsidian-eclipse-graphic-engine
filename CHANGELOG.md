@@ -11,7 +11,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Remove identity-specific Git author policy from source. Keep Git metadata separate from
   tracked content and enforce the email-content check on the checker itself as well.
-  No runtime package or native code changes; the published 0.2.1 tag remains unchanged.
+  Repository history and tag identifiers were sanitized on explicit request. Runtime package
+  and native source trees, published archives and checksums remain unchanged.
 
 ## [0.2.1] - 2026-09-06
 
