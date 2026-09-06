@@ -1,6 +1,6 @@
 {
   "name": "@obsidian-eclipse/sample-endless-platformer-capacitor",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,7 +21,7 @@
     "@capacitor/device": "^8",
     "@capacitor/ios": "^8",
     "@capacitor/preferences": "^8",
-    "obsidian-eclipse-capacitor-plugins": "^0.2.0"
+    "obsidian-eclipse-capacitor-plugins": "^0.2.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^8"

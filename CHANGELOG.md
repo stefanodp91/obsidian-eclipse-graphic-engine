@@ -7,6 +7,10 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.1] - Unreleased
+
+Cumulative patch candidate; preparation does not publish a tag or release.
+
 ### Fixed
 
 - Bound baked cel strokes using the opposite triangle surface of the same connected component

@@ -11,7 +11,18 @@ The deployment workflow does not publish the packages to npm.
 3. Run `npm install --package-lock-only` so `package-lock.json` records the same workspace versions.
 4. Update user-facing changelogs when the release contains behavior changes.
 5. Run `npm ci` followed by `npm run check` from a clean checkout.
-6. Commit the version and changelog changes and merge them into `main`.
+6. Package local candidates with `npm pack --workspace ... --pack-destination <candidate-dir>`
+   and archive the built sample. Record SHA-256 checksums separately from future official assets.
+7. Smoke-test the actual tarballs in a clean external consumer (exports, declarations and packaging).
+8. Commit the version and changelog changes and merge them into `main`.
+
+Preparation is local. Do not tag, push a release tag, start remote validation, or publish assets
+without an explicit owner request for that action. If `npm run check` fails, preserve the failing
+gate and report the blocker; a passing subset is not release approval. In particular, a historical
+non-noreply author must be resolved deliberately, not hidden by weakening the sensitive-data check
+or by silently rewriting public history.
+
+The current [0.2.1 candidate notes](releases/0.2.1.md) record compatibility and validation status.
 
 ## Publish a release
 
@@ -20,8 +31,8 @@ Create and push an annotated tag from the release commit:
 ```bash
 git switch main
 git pull --ff-only
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin v0.1.0
+git tag -a v0.2.1 -m "Release v0.2.1"
+git push origin v0.2.1
 ```
 
 The `Deploy` GitHub Actions workflow then:

@@ -36,3 +36,11 @@ not remain enabled in production hot paths.
 
 Automated unit tests protect lifecycle invariants, but they do not replace device testing for GPU
 memory, shader compilation, WebGPU validation, high-refresh behavior, or thermal throttling.
+
+## Separate setup, scheduling and drawing
+
+For a render cap, count scene renders rather than rAF callbacks and record the startup window,
+phase changes and pause/resume. For baked outlines, record first-use CPU bake time, emitted indices,
+and steady CPU/GPU render time separately. Compare the same content directly and after pool reuse.
+A short visible-browser smoke test establishes neither native-host behavior nor thermal/battery
+performance. Keep artistic acceptance separate from geometric and performance contracts.

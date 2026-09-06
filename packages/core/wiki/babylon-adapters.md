@@ -60,11 +60,17 @@ Cleanup cancels the startup timer, unsubscribes state listeners and stops render
 called before startup reconciliation. A captured gated callback is inert while stopped or disposed.
 The scene and engine remain host-owned and must be disposed separately.
 
-The target cap is read live by the gated callback. This ownership fix does not change the existing
-frame-skip tolerance (`period * 0.5`); a requested target is not yet a precise delivered-fps bound.
-Validate delivered renders separately from rAF/engine frame counters. Regression coverage lives in
-[`RenderLoopGate.lifecycle.test.ts`](../src/adapters/babylon/RenderLoopGate.lifecycle.test.ts),
-including a check against Babylon's real callback registry with `NullEngine`.
+The target cap is read live by the gated callback. Positive finite targets use cumulative
+scheduled deadlines: with sufficient callbacks and rendering capacity, the average approaches the
+target without accumulating display-quantization drift. Individual intervals remain quantized by
+the display. A target change or resume starts a fresh phase and renders immediately; long stalls
+discard accumulated debt. Null, non-positive and non-finite values uncap the loop.
+
+Count `scene.onAfterRenderObservable` to validate delivered renders; rAF and engine frame counters
+also count callbacks whose render is skipped. Startup-window and ownership limits above still apply.
+Coverage includes [lifecycle](../src/adapters/babylon/RenderLoopGate.lifecycle.test.ts) with Babylon's
+real callback registry and [pacing](../src/adapters/babylon/RenderLoopGate.pacing.test.ts) across
+60/90/120 Hz callback streams, jitter, target changes, stalls and pause/resume.
 
 ## Global switches
 

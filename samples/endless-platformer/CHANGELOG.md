@@ -4,6 +4,12 @@ All notable changes to the Endless Shark sample are documented here.
 
 ## Unreleased
 
+## 0.2.1 - Unreleased
+
+- Align sample and model versions with the cumulative engine patch candidate.
+- Require the corrected core and optional Capacitor package. The sample retains Reactylon
+  render-loop ownership; it does not install the optional gate or use baked cel outlines.
+
 ## 0.2.0 - 2026-09-04
 
 ### Changed
