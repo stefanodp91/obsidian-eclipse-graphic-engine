@@ -19,7 +19,11 @@ export interface RenderLoopGateOpts {
      *  takes effect without re-registering the loop. Enforced by skipping the
      *  `scene.render()` (frame-skip), NOT by touching `engine.maxFPS` (which has
      *  other owners). Used to throttle non-interactive phases behind opaque
-     *  overlays (loading/interlude/ready) for battery. */
+     *  overlays (loading/interlude/ready) for battery.
+     *  Positive finite targets use cumulative deadlines: with enough display
+     *  callbacks, the average approaches the target. Individual intervals are
+     *  display-quantized, not a strict minimum spacing. Invalid targets uncap.
+     *  Changes/resume render immediately; long stalls discard accumulated debt. */
     targetFps?(): number | null;
 }
 
@@ -31,22 +35,30 @@ export function setupRenderLoopGate(
     // null means ownership is not established: an existing host loop is not
     // evidence that OUR callback is installed. runRenderLoop adds callbacks.
     let loopRunning: boolean | null = null;
-    let lastRenderMs = 0;
+    let previousCap: number | null = null;
+    let nextRenderMs = 0;
     let disposed = false;
 
     const render = () => {
         // Babylon may already have captured a callback when teardown occurs.
         if (disposed || !loopRunning) return;
         const cap = opts.targetFps?.();
-        if (cap != null && cap > 0) {
+        if (cap != null && Number.isFinite(cap) && cap > 0) {
             const now = performance.now();
-            // Preserve the existing target-relative tolerance in this ownership
-            // fix. It is half the TARGET period, not the display period, so it
-            // can exceed the requested fps. Precision is a separate contract.
             const period = 1000 / cap;
-            const tolerance = period * 0.5;
-            if (now - lastRenderMs < period - tolerance) return;   // skip: throttle
-            lastRenderMs = now;
+            if (cap !== previousCap) {
+                previousCap = cap;
+                nextRenderMs = now;
+            }
+            if (now < nextRenderMs) return;
+            // Advance the scheduled deadline, not "now + period": display
+            // quantization and jitter must not accumulate into a lower rate.
+            // Allow one missed slot to settle on a later display callback;
+            // discard longer backlogs instead of producing catch-up bursts.
+            nextRenderMs = now - nextRenderMs >= 2 * period
+                ? now + period : nextRenderMs + period;
+        } else {
+            previousCap = null;
         }
         if (scene.activeCamera) scene.render();
     };
@@ -60,6 +72,7 @@ export function setupRenderLoopGate(
         // when the first observed state is already active.
         engine.stopRenderLoop();
         loopRunning = false;
+        previousCap = null;
         if (want) {
             engine.runRenderLoop(render);
             loopRunning = true;
