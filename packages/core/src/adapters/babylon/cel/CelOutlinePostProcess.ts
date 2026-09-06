@@ -390,6 +390,9 @@ export function setCelOutlineHullMode(
 
     const dress = (mesh: AbstractMesh, enable: boolean): void => {
         if (!hullBaked) { applyHull(mesh, enable); return; }
+        // Clear a prior classic/fallback pass even when turning baked mode off.
+        // A successfully baked mesh must never retain a second outline pass.
+        applyHull(mesh, false);
         if (!enable) return;
         // ⚠️ Baking CANNOT happen when the mesh is born: `new Mesh()` adds it to
         // the scene BEFORE `applyToMesh` gives it its vertices, and baking over

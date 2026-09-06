@@ -17,6 +17,7 @@
 
 import type { Material, Scene } from '@babylonjs/core';
 import { Color3, Mesh, ShaderMaterial, VertexBuffer, VertexData } from '@babylonjs/core';
+import { createHullSurfaceQuery } from './hullSurface';
 import { setCelPluginOn } from './CelMaterialPlugin';
 import { CEL_HULL_VERTEX_SHADER, CEL_HULL_FRAGMENT_SHADER } from './celShading.glsl';
 
@@ -379,13 +380,14 @@ function tryBakeCelHull(
     // every edge (by POSITION, i.e. by cluster) appears EXACTLY twice, in the two
     // opposite directions. A doubled direction = mixed winding; a direction with
     // no opposite = open border. In both cases the component gets no hull —
-    // better no ink stroke than a black mesh. Collapsed edges (a==b, degenerate
-    // faces) are neutral: their face is invisible either way.
+    // better no ink stroke than a black mesh. Collapsed triangles (two coincident corners) are neutral: all of
+    // their edges must be ignored, or their fake edge pair closes twice.
     const EDGE_K = 1 << 21; // cluster id < 2^21 ⇒ key a*2^21+b within safe integers
     const dirEdges = new Map<number, number>();
     const edgeOf = (a: number, b: number): number => a * EDGE_K + b;
     for (let i = 0; i < indices.length; i += 3) {
         const ca = keyOf(indices[i] ?? 0), cb = keyOf(indices[i + 1] ?? 0), cc = keyOf(indices[i + 2] ?? 0);
+        if (ca === cb || cb === cc || cc === ca) continue;
         for (const [a, b] of [[ca, cb], [cb, cc], [cc, ca]] as const) {
             if (a === b) continue;
             const k = edgeOf(a, b);
@@ -397,6 +399,7 @@ function tryBakeCelHull(
         const root = find(faceCluster[i / 3] ?? 0);
         if (consistentRoot.get(root) === false) continue;
         const ca = keyOf(indices[i] ?? 0), cb = keyOf(indices[i + 1] ?? 0), cc = keyOf(indices[i + 2] ?? 0);
+        if (ca === cb || cb === cc || cc === ca) continue;
         let ok = true;
         for (const [from, to] of [[ca, cb], [cb, cc], [cc, ca]] as const) {
             if (from === to) continue;
@@ -479,99 +482,35 @@ function tryBakeCelHull(
     const extrudeSign = (clusterRoot: number): number =>
         (outwardDot.get(clusterRoot) ?? 0) >= 0 ? 1 : -1;
 
-    // ── LOCAL THICKNESS, and why the hull cannot be absolute ───────────────
-    //
-    // ⚠️ THE DEFECT THAT FORCED THIS BLOCK, measured in a consumer scene on 2026-08-18.
-    // The hull was `width` wide everywhere, and a tuft of thin-bladed grass
-    // (1.07 × 0.46 m of extent, blades a few millimeters thick) came out as a FAT
-    // BLACK HOOK: the blade is thinner than its own hull, so the hull does not
-    // outline it — it replaces it. On the frame those arcs measured luminance **3**
-    // against sand at 203, while the darkest of that level's seventeen species, in
-    // albedo, sits at 97. An albedo of 97 does not drop to 3 through shading: that
-    // black was painted by the hull. Proof: raising the switch-on threshold moved
-    // the near-black pixels from 1.62% to 0.30%.
-    //
-    // ⚠️ And the switch-on criterion could not see it: `minDiagonal` reads the
-    // EXTENT, which on an arching plant says how wide it is, not how thick. The
-    // quantity that matters is the RATIO between the stroke's width and the
-    // thickness of the piece it has to outline — and thickness is local, not a
-    // property of the mesh: a tuft merged into a single master has a large bounding
-    // box in all three directions while being made of blades.
-    //
-    // So thickness is measured VERTEX BY VERTEX, and geometrically: from the point
-    // we walk BACKWARDS along the smoothed normal and look for the opposite
-    // surface, i.e. a nearby cluster whose normal faces the other way. The distance
-    // at which it is found is the thickness there. The hull takes
-    // `min(width, SHELL_OF_THICKNESS · thickness)`: on a boulder nothing changes
-    // (the opposite wall is very far away), on a blade the hull thins out with it
-    // and stays an outline instead of becoming the object.
-    //
-    // Cost: a hash grid over the clusters, cells as wide as the search radius,
-    // twenty-seven cells inspected per vertex. This is BAKING work, once per
-    // master, not per frame.
+    // Measure the opposite triangle surface of this connected component.
+    // Searching vertices misses sparse/tapered walls and can mistake an adjacent
+    // solid for thickness. A per-component BVH bounds bake-time query cost.
+    // The maximum useful distance follows from the coefficient, not 2 * width.
     const SHELL_OF_THICKNESS = 0.45;
-    const cellSize = Math.max(width * 2, 1e-4);
-    const cx3 = new Float64Array(clusterKeys.length);
-    const cy3 = new Float64Array(clusterKeys.length);
-    const cz3 = new Float64Array(clusterKeys.length);
-    const nx3 = new Float64Array(clusterKeys.length);
-    const ny3 = new Float64Array(clusterKeys.length);
-    const nz3 = new Float64Array(clusterKeys.length);
-    clusterKeys.forEach((k, i) => {
-        const parts = k.split(',');
-        cx3[i] = Number(parts[0]) / 1e4;
-        cy3[i] = Number(parts[1]) / 1e4;
-        cz3[i] = Number(parts[2]) / 1e4;
-        const n = clusters.get(k) ?? [0, 1, 0];
-        const len = Math.hypot(n[0], n[1], n[2]) || 1;
-        // Search behind the OUTWARD normal, just as the extrusion below does.
-        // Authored inward normals otherwise search outside the solid and miss
-        // its opposite wall, silently restoring the full stroke on thin parts.
-        const sign = extrudeSign(find(i));
-        nx3[i] = sign * n[0] / len; ny3[i] = sign * n[1] / len; nz3[i] = sign * n[2] / len;
-    });
-    const grid = new Map<string, number[]>();
-    const cellKey = (x: number, y: number, z: number): string =>
-        `${Math.floor(x / cellSize)},${Math.floor(y / cellSize)},${Math.floor(z / cellSize)}`;
-    for (let i = 0; i < clusterKeys.length; i++) {
-        const k = cellKey(cx3[i] ?? 0, cy3[i] ?? 0, cz3[i] ?? 0);
-        const bucket = grid.get(k);
-        if (bucket) bucket.push(i); else grid.set(k, [i]);
-    }
-    /** Hull width in this cluster: full, or as much as the local thickness
-     *  allows. */
+    const roots = new Int32Array(faceCluster.length);
+    for (let f = 0; f < roots.length; f++) roots[f] = find(faceCluster[f]!);
+    const surfaceDistance = createHullSurfaceQuery(positions, indices, roots);
     const hullWidthAt = new Float64Array(clusterKeys.length).fill(width);
-    const reach = cellSize;
-    for (let i = 0; i < clusterKeys.length; i++) {
-        const px = cx3[i] ?? 0, py = cy3[i] ?? 0, pz = cz3[i] ?? 0;
-        const ni = nx3[i] ?? 0, nj = ny3[i] ?? 0, nk = nz3[i] ?? 0;
-        // A degenerate normal (a lamina with two coincident faces) gives no
-        // direction to search in: that cluster keeps the full width, and if there
-        // are many of them the mesh has already been rejected by the guard above.
-        if (ni * ni + nj * nj + nk * nk < 0.25) continue;
-        let best = Infinity;
-        const gx = Math.floor(px / cellSize), gy = Math.floor(py / cellSize), gz = Math.floor(pz / cellSize);
-        for (let ax = -1; ax <= 1; ax++) for (let ay = -1; ay <= 1; ay++) for (let az = -1; az <= 1; az++) {
-            const bucket = grid.get(`${gx + ax},${gy + ay},${gz + az}`);
-            if (!bucket) continue;
-            for (const j of bucket) {
-                if (j === i) continue;
-                // The OPPOSITE surface faces the other way.
-                if ((nx3[j] ?? 0) * ni + (ny3[j] ?? 0) * nj + (nz3[j] ?? 0) * nk > -0.3) continue;
-                const dx = (cx3[j] ?? 0) - px, dy = (cy3[j] ?? 0) - py, dz = (cz3[j] ?? 0) - pz;
-                // …and lies BEHIND, i.e. in the direction in which the piece has thickness.
-                const along = dx * ni + dy * nj + dz * nk;
-                if (along >= 0) continue;
-                const t = -along;
-                if (t > reach) continue;
-                // It has to be the face straight ahead, not a sideways neighbor:
-                // the perpendicular offset stays within half a width.
-                const ox = dx - along * ni, oy = dy - along * nj, oz = dz - along * nk;
-                if (ox * ox + oy * oy + oz * oz > width * width * 0.25) continue;
-                if (t < best) best = t;
-            }
-        }
-        if (best < Infinity) hullWidthAt[i] = Math.min(width, best * SHELL_OF_THICKNESS);
+    const visited = new Set<number>();
+    for (let v = 0; v < count; v++) {
+        const ci = keyOf(v);
+        if (visited.has(ci)) continue;
+        visited.add(ci);
+        const root = find(ci);
+        if (!closedRoot.get(root)) continue;
+        const n = clusters.get(clusterKeys[ci]!)!;
+        const len = Math.hypot(n[0], n[1], n[2]);
+        if (len < 1e-12) continue;
+        const sign = extrudeSign(root);
+        const distance = surfaceDistance(root,
+            [positions[v * 3]!, positions[v * 3 + 1]!, positions[v * 3 + 2]!],
+            [-sign * n[0] / len, -sign * n[1] / len, -sign * n[2] / len],
+            width / SHELL_OF_THICKNESS);
+        // A normal at a cap/corner can run along a thin component rather than
+        // across it, or leave a concavity immediately. Bound it by the component's
+        // volume/area estimate too, so a missed ray never restores a huge stroke.
+        const componentThickness = 4 * Math.abs(vol6ByRoot.get(root) ?? 0) / 6 / (areaByRoot.get(root) ?? Infinity);
+        hullWidthAt[ci] = Math.min(width, SHELL_OF_THICKNESS * Math.min(distance, componentThickness));
     }
 
     const newPos = new Float32Array(count * 6);

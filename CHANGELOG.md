@@ -9,6 +9,16 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Bound baked cel strokes using the opposite triangle surface of the same connected component
+  and a volume/area size estimate. Bake-time BVHs replace vertex-neighbor searches, avoiding
+  cross-component interference and full-width strokes on sparse tapered parts or missed rays.
+  Ignore collapsed triangles in edge topology so closed sphere poles and tube caps can bake.
+  Body bounds remain unchanged; the rendering path gains no extra pass.
+- Clear stale per-mesh outline passes when switching to baked mode or disabling its fallback.
+  Essential non-bakeable meshes and explicit no-fallback markers retain their contracts.
+  Nine regressions cover sparse/tapered geometry, disconnected solids, closed caps, open surfaces
+  and fallback transitions.
+
 - Use outward-oriented normals for baked hull thickness searches, matching extrusion.
   Inward-authored normals previously searched outside the solid and left thin parts with
   the full requested stroke. Five regressions cover three geometry densities, thick solids,

@@ -168,15 +168,30 @@ cel-rendering, performance, and Reactylon integration guides.
 
 ## Baked cel hull thickness
 
-`bakeCelHullIntoMesh` from `obsidian-eclipse-graphic-engine/babylon` treats the requested width
-as a maximum local extrusion. Its existing vertex-neighbor heuristic reduces that width when
-it finds an opposite wall nearby. The search and extrusion both use outward-oriented normals,
-so reversing a closed solid's winding and normals does not disable thickness reduction.
+`bakeCelHullIntoMesh` from `obsidian-eclipse-graphic-engine/babylon` uses local mesh units.
+For each eligible connected component its stroke is bounded by:
 
-This is a sampled heuristic, not a general thickness solver: sparse vertices, tapered parts and
-merged components still need content-specific validation. The separate shader/per-mesh outline
-fallbacks do not inherit this baked-geometry rule. Body geometry stays unchanged apart from buffer
-precision, and `celBodyBoxOf` retains its pre-hull local bounds for physical measurements.
+```text
+min(requestedWidth, 0.45 * inwardSurfaceDistance, 0.45 * 4 * abs(volume) / area)
+```
+
+The inward ray follows the outward-oriented smoothed normal in reverse and intersects actual
+triangles in that component, using a bake-time BVH. Other components cannot supply an opposite
+wall. Searches stop at `requestedWidth / 0.45`; a miss leaves the component volume/area bound in
+force. This is a directional thickness and component-size policy, not a shortest-distance or
+screen-pixel thickness guarantee. It handles sparse faces and caps without relying on opposite
+vertices. Collapsed triangles do not count as topological edges; open or inconsistent surfaces
+remain excluded by the existing eligibility checks.
+
+All added work happens during baking; the runtime keeps the same single indexed mesh and material.
+Body positions and physical bounds from `celBodyBoxOf` are preserved (subject to Float32 buffer
+precision). Baking remains irreversible and transforms applied later scale the stroke with the body.
+
+Essential meshes that cannot bake (for example, dynamic PBR meshes) retain the existing uniform
+per-mesh fallback, unless explicitly marked with `markCelOutlineNoHullFallback`. Dynamic shader
+hulls also retain their explicit uniform thickness. These paths do not rewrite host-owned buffers
+or silently adopt the static bake policy. Switching to baked mode clears the previous per-mesh
+pass; disabling the mode stops fallback passes but cannot remove already baked geometry.
 
 ## Development
 
