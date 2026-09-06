@@ -25,6 +25,12 @@ flowchart LR
 contract without updating the coverage manifest. The runtime test also compares the returned object
 shape with that manifest and invokes every operation.
 
+[`disposal.test.ts`](../src/api/disposal.test.ts) verifies that every facade mutation is rejected
+after disposal before invoking a host service, with optional ports both connected and absent.
+It also preserves teardown reads, subscriptions and returned cleanup functions, and verifies
+reentrant disposal and host cleanup failure. Resource ownership operations and input consumption
+are mutations; their post-disposal behavior follows the [lifecycle contract](engine-lifecycle.md).
+
 | Resource | Covered API |
 | --- | --- |
 | phase | `transition`, `get`, `subscribe` |

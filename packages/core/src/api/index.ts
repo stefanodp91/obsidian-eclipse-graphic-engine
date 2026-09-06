@@ -179,29 +179,29 @@ export function createGraphicEngine(options: CreateGraphicEngineOptions): Graphi
       },
     },
     assets: {
-      set<T>(key: string, value: T, tier: AssetTier): T { return options.assets ? options.assets.set<T>(key, value, tier) : value; },
+      set<T>(key: string, value: T, tier: AssetTier): T { ensureLive(); return options.assets ? options.assets.set<T>(key, value, tier) : value; },
       get<T>(key: string): T | null { return options.assets ? options.assets.get<T>(key) : null; },
-      acquire(key) { return options.assets ? options.assets.acquire(key) : false; },
-      release(key) { options.assets?.release(key); },
-      clearTier(tier) { options.assets?.clearTier(tier); },
+      acquire(key) { ensureLive(); return options.assets ? options.assets.acquire(key) : false; },
+      release(key) { ensureLive(); options.assets?.release(key); },
+      clearTier(tier) { ensureLive(); options.assets?.clearTier(tier); },
       has(key) { return options.assets ? options.assets.has(key) : false; },
       get size() { return options.assets ? options.assets.size : 0; },
     },
     materials: {
       acquire<M>(key: string, factory: (mat: M) => void): M | null { ensureLive(); return options.materials ? options.materials.acquire<M>(key, factory) : null; },
       acquireTiered<S, P>(key: string, stdFactory: (mat: S) => void, pbrFactory: (mat: P) => void): S | P | null { ensureLive(); return options.materials ? options.materials.acquireTiered<S, P>(key, stdFactory, pbrFactory) : null; },
-      release(key) { options.materials?.release(key); },
+      release(key) { ensureLive(); options.materials?.release(key); },
     },
     pools: {
-      register<F>(key: string, factory: F): void { options.pools?.register<F>(key, factory); },
+      register<F>(key: string, factory: F): void { ensureLive(); options.pools?.register<F>(key, factory); },
       acquire<R>(key: string): R | null { ensureLive(); return options.pools ? options.pools.acquire<R>(key) : null; },
-      releaseType(key) { options.pools?.releaseType(key); },
-      prewarm(key, count) { options.pools?.prewarm(key, count); },
+      releaseType(key) { ensureLive(); options.pools?.releaseType(key); },
+      prewarm(key, count) { ensureLive(); options.pools?.prewarm(key, count); },
     },
     input: {
       attach(target) { ensureLive(); return options.input ? options.input.attach(target) : () => {}; },
       get lateral() { return options.input ? options.input.lateral : 0; },
-      consumeJump() { return options.input ? options.input.consumeJump() : false; },
+      consumeJump() { ensureLive(); return options.input ? options.input.consumeJump() : false; },
     },
     dispose() {
       if (disposed) return;

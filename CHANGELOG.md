@@ -7,6 +7,16 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Enforce the documented facade disposal contract for asset mutations, material release, pool
+  registration/release/prewarm, and input event consumption. These operations now throw before
+  reaching host services after `dispose()`, including when optional ports are absent. Reads,
+  subscriptions, and previously returned cleanup functions retain their existing behavior.
+  Hosts must release resources before facade disposal or clean up their owned services directly
+  in `onDispose`; calling facade mutators from that callback is rejected. Regression coverage
+  includes reentrant disposal and host cleanup failure.
+
 ## [0.2.0] - 2026-09-04
 
 ### Fixed
