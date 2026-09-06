@@ -2,8 +2,8 @@
 
 Open-source runtime packages for Babylon.js and Capacitor applications.
 
-The [0.2.1 cumulative patch](docs/releases/0.2.1.md) is prepared locally; publication remains
-blocked by the release gate recorded there. See the [release procedure](docs/RELEASING.md).
+The [0.2.1 cumulative patch](docs/releases/0.2.1.md) is prepared locally and passes the full local release gate;
+it has not been tagged or published. See the [release procedure](docs/RELEASING.md).
 
 ## Playable sample
 

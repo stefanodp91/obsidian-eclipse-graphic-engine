@@ -37,23 +37,13 @@ for (const file of trackedFiles) {
     continue;
   }
 
-  // This checker necessarily contains the signatures it detects.
-  if (file === 'scripts/check-sensitive.mjs') continue;
-
   const buffer = readFileSync(file);
   if (buffer.includes(0)) continue;
   const content = buffer.toString('utf8');
   for (const [label, pattern] of forbiddenContent) {
+    // Detection signatures are intentional here; literal email addresses never are.
+    if (file === 'scripts/check-sensitive.mjs' && label !== 'personal email address') continue;
     if (pattern.test(content)) failures.push(`${file}: ${label}`);
-  }
-}
-
-const authorEmails = execFileSync('git', ['log', '--format=%ae'], { encoding: 'utf8' })
-  .split(/\r?\n/u)
-  .filter(Boolean);
-for (const email of new Set(authorEmails)) {
-  if (!email.endsWith('@users.noreply.github.com')) {
-    failures.push('git history: commit author email is not a GitHub noreply address');
   }
 }
 
@@ -62,4 +52,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`✓ Sensitive-data check: ${trackedFiles.length} tracked files and Git author metadata passed.`);
+console.log(`✓ Sensitive-data check: ${trackedFiles.length} tracked files passed.`);

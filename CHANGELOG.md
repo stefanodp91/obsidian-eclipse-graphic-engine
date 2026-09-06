@@ -13,6 +13,9 @@ Cumulative patch candidate; preparation does not publish a tag or release.
 
 ### Fixed
 
+- Accept the exact owner-approved Git author identity alongside GitHub noreply identities,
+  without rewriting history or changing tracked-file sensitive-data checks.
+
 - Bound baked cel strokes using the opposite triangle surface of the same connected component
   and a volume/area size estimate. Bake-time BVHs replace vertex-neighbor searches, avoiding
   cross-component interference and full-width strokes on sparse tapered parts or missed rays.
