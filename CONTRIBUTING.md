@@ -34,6 +34,11 @@ Source code and comments must not contain developer identities or personal data.
 personal allowlists: email scanning includes the checker itself. Git author metadata is separate
 from tracked content and does not require an identity-specific exception in source code.
 
+The only packages this repository may name are the ones it publishes and its sibling audio engine;
+`check:sensitive` rejects any other `obsidian-eclipse-*` reference. The rule is stated as an
+allowlist on purpose. A denylist of a consumer's identifiers has to spell those identifiers out in
+a public file to keep them out, and can only ever catch the leaks someone already imagined.
+
 ## Pull requests
 
 Describe the problem, the chosen behavior and the verification performed. Keep unrelated cleanup in
