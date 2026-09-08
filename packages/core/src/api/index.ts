@@ -87,8 +87,8 @@ export interface TierPort {
 }
 
 /** Host-injected render-gating sink for EnginePhase transitions. Optional: when
- *  absent, `engine.phase.transition` is a no-op (gating not yet routed through
- *  the Facade — Fase 5). */
+ *  absent, `engine.phase.transition` is a no-op, because gating is not routed
+ *  through the facade. */
 export type PhaseSink = (to: EnginePhase) => void;
 
 export interface CreateGraphicEngineOptions {

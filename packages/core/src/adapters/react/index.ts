@@ -1,4 +1,4 @@
-// Driving adapter on React 19 (Fase 5): GraphicEngineProvider + signal-based
+// Driving adapter on React 19: GraphicEngineProvider + signal-based
 // hooks. Imports react (optional peer). Uses createElement (no JSX) so the
 // module stays a plain .ts with zero jsx-config dependency in the engine
 // package. React remains a peer dependency so the application supplies one

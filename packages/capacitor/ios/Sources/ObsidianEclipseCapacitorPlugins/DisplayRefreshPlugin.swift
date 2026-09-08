@@ -1,5 +1,5 @@
-// DisplayRefreshPlugin (iOS) — symmetric with the Android DisplayRefreshPlugin
-// (Fase 4c). API parity: setRefreshMode('60'|'max'), getRefreshInfo().
+// DisplayRefreshPlugin (iOS) — symmetric with the Android DisplayRefreshPlugin.
+// API parity: setRefreshMode('60'|'max'), getRefreshInfo().
 //
 // Platform-honest behavior: iOS ProMotion is system-adaptive and WKWebView's
 // frame rate is governed by the app's Info.plist CADisableMinimumFrameDurationOnPhone

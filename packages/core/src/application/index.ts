@@ -1,4 +1,5 @@
-// Use cases (1 use case = 1 class, SRP). Populated in Fase 2-3:
-// ResolveQualityProfile, RunDeviceProbe, RunWarmupProbe, ApplyEngineProfile,
-// GateRenderLoop, AcquirePooledMesh, EvictAssets, FlattenObservers.
+// Use cases, one per class and each with a single responsibility. Reserved for
+// resolving a quality profile, running the device and warmup probes, applying an
+// engine profile, gating the render loop, acquiring pooled meshes, evicting
+// assets, and flattening observers.
 export {};
