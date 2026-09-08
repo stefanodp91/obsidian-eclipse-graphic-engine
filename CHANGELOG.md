@@ -7,6 +7,10 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-08
+
+Documentation and source-comment patch. No runtime behavior changes: every code line is unchanged.
+
 ### Added
 
 - Document the sibling audio engine repository, which applies the same boundary between library and
@@ -14,6 +18,11 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Remove internal roadmap identifiers from source comments. Seven comments across the core
+  application barrel, the Havok, memory and React adapters, the engine options and the iOS display
+  plugin still carried phase numbers that name nothing a reader outside this project can resolve;
+  one of them was also the last untranslated word left by the comment pass. Each is replaced by
+  what it was trying to say.
 - Remove identity-specific Git author policy from source. Keep Git metadata separate from
   tracked content and enforce the email-content check on the checker itself as well.
   Repository history and tag identifiers were sanitized on explicit request. Runtime package
@@ -144,7 +153,9 @@ Cumulative patch for lifecycle guards, render scheduling and baked cel outlines.
 
 - Initial independent release of the Babylon.js core, Capacitor adapters and Endless Shark sample.
 
-[Unreleased]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/releases/tag/v0.1.0

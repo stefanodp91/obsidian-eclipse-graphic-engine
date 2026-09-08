@@ -8,7 +8,14 @@ The deployment workflow does not publish the packages to npm.
 1. Choose the next version using semantic versioning.
 2. Update the `version` field in the root manifest, both package manifests, the Endless Shark web
    and Capacitor manifests, and the sample-model manifest.
-3. Run `npm install --package-lock-only` so `package-lock.json` records the same workspace versions.
+3. Run `npm install --package-lock-only` on **Node 22 / npm 10**, the pair the release runner uses,
+   so `package-lock.json` records the same workspace versions. Then confirm it still records every
+   platform binary with `grep -c '"node_modules/@rollup/rollup-' package-lock.json`, which must
+   report every published variant rather than one: a newer npm regenerating the lockfile against an
+   already platform-filtered `node_modules` keeps only the host's own binary, which installs locally
+   and fails on the Linux runner with `Cannot find module @rollup/rollup-linux-x64-gnu`. Recovering
+   from that state needs a full `npm install` from an absent `node_modules`, not another
+   `--package-lock-only`.
 4. Update user-facing changelogs when the release contains behavior changes.
 5. Run `npm ci` followed by `npm run check` from a clean checkout.
 6. Package local candidates with `npm pack --workspace ... --pack-destination <candidate-dir>`
@@ -22,7 +29,7 @@ gate and report the blocker; a passing subset is not release approval. The sensi
 tracked content, including email literals in the checker itself. Git author metadata is outside
 that content scan; never encode personal identities or address allowlists in source code.
 
-The current [0.2.1 release notes](releases/0.2.1.md) record compatibility and validation status.
+The current [0.2.2 release notes](releases/0.2.2.md) record compatibility and validation status.
 
 ## Publish a release
 
@@ -31,8 +38,8 @@ Create and push an annotated tag from the release commit:
 ```bash
 git switch main
 git pull --ff-only
-git tag -a v0.2.1 -m "Release v0.2.1"
-git push origin v0.2.1
+git tag -a v0.2.2 -m "Release v0.2.2"
+git push origin v0.2.2
 ```
 
 The `Deploy` GitHub Actions workflow then:
