@@ -7,7 +7,17 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.2.1] - 2026-09-08
+### Changed
+
+- The sensitive-data gate names the packages that are allowed instead of a consumer's identifiers.
+  The former denylist had to spell those identifiers out in the one public file whose purpose is to
+  keep them out, and could only catch leaks someone had already thought of; any undeclared
+  `obsidian-eclipse-*` reference now fails, including one nobody anticipated. The generic
+  secret-name pattern stays, because it names a shape rather than a product.
+- State in the release guide that a release must carry a runtime change, so documentation and
+  comments wait for the next patch that changes behavior. `main` ahead of the last tag is therefore
+  the normal state. These entries are themselves documentation and tooling, and stay here by that
+  rule.
 
 Cumulative patch for lifecycle guards, render scheduling and baked cel outlines.
 
