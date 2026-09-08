@@ -89,6 +89,13 @@ Package documentation:
 - [Playable Endless Platformer sample](samples/endless-platformer/README.md)
 - [Native Capacitor sample and device launchers](samples/endless-platformer-capacitor/README.md)
 
+## Related projects
+
+The [Obsidian Eclipse Audio Engine](https://github.com/stefanodp91/obsidian-eclipse-audio-engine) is
+the sibling repository. It applies the same boundary to sound: the library owns the machinery — the
+audio graph, unlocking, gapless looping, crossfade, ducking and the hardware lifecycle — and the
+host owns the content. Neither package depends on the other, and they can be adopted separately.
+
 ## Credits
 
 [Reactylon](https://www.reactylon.com/docs) was created by Simone De Vittorio and is used under the

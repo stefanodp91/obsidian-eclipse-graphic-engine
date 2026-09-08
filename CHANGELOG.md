@@ -7,6 +7,11 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Document the sibling audio engine repository, which applies the same boundary between library and
+  host to sound. It is not a dependency of this repository.
+
 ### Fixed
 
 - Remove identity-specific Git author policy from source. Keep Git metadata separate from
