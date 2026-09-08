@@ -3,6 +3,15 @@
 GitHub Releases and the GitHub Pages sample are deployed automatically from semantic-version tags.
 The deployment workflow does not publish the packages to npm.
 
+## What earns a release
+
+**A release must carry a runtime change.** Documentation, comments, release guides and repository
+policy never become a version of their own: they wait on `main` and ship with the next patch that
+changes behavior. A version that a consumer cannot act on still costs everyone who sees it a
+decision — read the notes, bump the dependency, re-verify the build — and returns nothing.
+
+`main` sitting ahead of the last tag is therefore the normal state, not a gap to close.
+
 ## Prepare a release
 
 1. Choose the next version using semantic versioning.
@@ -29,7 +38,7 @@ gate and report the blocker; a passing subset is not release approval. The sensi
 tracked content, including email literals in the checker itself. Git author metadata is outside
 that content scan; never encode personal identities or address allowlists in source code.
 
-The current [0.2.2 release notes](releases/0.2.2.md) record compatibility and validation status.
+The current [0.2.1 release notes](releases/0.2.1.md) record compatibility and validation status.
 
 ## Publish a release
 
@@ -38,8 +47,8 @@ Create and push an annotated tag from the release commit:
 ```bash
 git switch main
 git pull --ff-only
-git tag -a v0.2.2 -m "Release v0.2.2"
-git push origin v0.2.2
+git tag -a v0.2.1 -m "Release v0.2.1"
+git push origin v0.2.1
 ```
 
 The `Deploy` GitHub Actions workflow then:
@@ -81,3 +90,10 @@ be retried from GitHub Actions; pushing an ordinary commit does not retry or tri
 If the workflow fails before publishing, fix the cause, delete the remote tag, recreate it on the
 correct commit and push it again. Never move a tag after a successful public release; publish a new
 patch version instead.
+
+That rule was overridden once, on 2026-09-08 and by explicit owner decision, to withdraw a
+documentation-only 0.2.2 and absorb it into 0.2.1. The price is recorded here because it is the
+argument against doing it again: the 0.2.1 artifacts were rebuilt, so their checksums no longer
+match the ones published on 2026-09-06, and every consumer that pinned the earlier archive by
+integrity fails to install until it refreshes its lockfile. The version number stayed still while
+the bytes moved underneath it, which is exactly what a version number exists to prevent.

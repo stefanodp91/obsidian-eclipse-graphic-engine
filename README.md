@@ -2,7 +2,7 @@
 
 Open-source runtime packages for Babylon.js and Capacitor applications.
 
-See the [0.2.2 patch notes](docs/releases/0.2.2.md) for corrections, compatibility and
+See the [0.2.1 cumulative patch notes](docs/releases/0.2.1.md) for corrections, compatibility and
 validation, and the [release procedure](docs/RELEASING.md) for official artifact publication.
 
 ## Playable sample

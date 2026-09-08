@@ -7,9 +7,15 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.2.2] - 2026-09-08
+## [0.2.1] - 2026-09-08
 
-Documentation and source-comment patch. No runtime behavior changes: every code line is unchanged.
+Cumulative patch for lifecycle guards, render scheduling and baked cel outlines.
+
+Re-cut on 2026-09-08 to absorb the documentation and source-comment changes that had followed it.
+A release must carry a runtime change, so those changes join this patch instead of forming one of
+their own. The runtime is unchanged from the 2026-09-06 build: every code line is identical and no
+export, signature or native contract moves. The artifacts and their checksums were rebuilt from the
+new release commit and therefore differ from the ones published on 2026-09-06.
 
 ### Added
 
@@ -26,16 +32,9 @@ Documentation and source-comment patch. No runtime behavior changes: every code 
 - Remove identity-specific Git author policy from source. Keep Git metadata separate from
   tracked content and enforce the email-content check on the checker itself as well.
   Repository history and tag identifiers were sanitized on explicit request. Runtime package
-  and native source trees, published archives and checksums remain unchanged.
-
-## [0.2.1] - 2026-09-06
-
-Cumulative patch for lifecycle guards, render scheduling and baked cel outlines.
-
-### Fixed
-
+  and native source trees are unchanged.
 - Adjust Git author validation without rewriting history. This repository-only policy is
-  superseded by the unreleased content-scanning correction above.
+  superseded by the content-scanning correction above.
 
 - Bound baked cel strokes using the opposite triangle surface of the same connected component
   and a volume/area size estimate. Bake-time BVHs replace vertex-neighbor searches, avoiding
@@ -153,8 +152,7 @@ Cumulative patch for lifecycle guards, render scheduling and baked cel outlines.
 
 - Initial independent release of the Babylon.js core, Capacitor adapters and Endless Shark sample.
 
-[Unreleased]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.2.2...HEAD
-[0.2.2]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.2.1...v0.2.2
+[Unreleased]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.2.1...HEAD
 [0.2.1]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/stefanodp91/obsidian-eclipse-graphic-engine/compare/v0.1.0...v0.1.1
